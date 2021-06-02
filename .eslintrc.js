@@ -13,7 +13,8 @@ module.exports = {
         'sourceType': 'module'
     },
     'plugins': [
-        '@typescript-eslint'
+        '@typescript-eslint',
+        'modules-newline'
     ],
     'rules': {
         'indent': [
@@ -31,6 +32,9 @@ module.exports = {
         'semi': [
             'error',
             'never'
-        ]
+        ],
+        'prefer-arrow-callback': 'error',
+        'modules-newline/import-declaration-newline': 'error',
+        'modules-newline/export-declaration-newline': 'error'
     }
 }

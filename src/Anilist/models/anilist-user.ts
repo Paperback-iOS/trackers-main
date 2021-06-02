@@ -1,5 +1,7 @@
-
-export interface AnilistUser {
+export interface Result {
+    Viewer: Viewer
+}
+export interface Viewer {
     id:               number;
     name:             string;
     mediaListOptions: MediaListOptions;
