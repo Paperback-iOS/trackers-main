@@ -11,11 +11,13 @@ import {
     Response
 } from 'paperback-extensions-common'
 import {
+    getMangaQuery,
     searchMangaQuery,
     userProfileQuery
 } from './models/graphql-queries'
 import * as AnilistUser from './models/anilist-user'
 import * as AnilistPage from './models/anilist-page'
+import * as AnilistManga from './models/anilist-manga'
 import { AnilistResult } from './models/anilist-result'
 
 const ANILIST_GRAPHQL_ENDPOINT = 'https://graphql.anilist.co/'
@@ -141,10 +143,39 @@ export class Anilist extends Tracker {
     } 
     
 
-    getTrackedManga(_mangaId: string): Promise<TrackedManga> {
-        return Promise.resolve({
-            id: '',
-            mangaInfo: Object.create(null)
+    async getTrackedManga(mangaId: string): Promise<TrackedManga> {
+        const response = await this.requestManager.schedule(createRequestObject({
+            url: ANILIST_GRAPHQL_ENDPOINT,
+            method: 'POST',
+            data: getMangaQuery(parseInt(mangaId))
+        }), 1)
+
+        const anilistManga = AnilistResult<AnilistManga.Result>(response.data).data?.Media
+
+        if(anilistManga == null) { return Promise.reject() }
+
+        return createTrackedManga({
+            id: mangaId,
+            mangaInfo: createMangaInfo({
+                image: anilistManga.coverImage.extraLarge,
+                titles: [
+                    anilistManga.title.romaji,
+                    anilistManga.title.english,
+                    anilistManga.title.native
+                ].filter(x => x != null) as string[],
+                artist: anilistManga.staff.edges.find(x => x.role.toLowerCase() == 'art')?.node.name.full ?? 'Unknown',
+                author: anilistManga.staff.edges.find(x => x.role.toLowerCase() == 'story')?.node.name.full ?? 'Unknown',
+                desc: anilistManga.description,
+                hentai: anilistManga.isAdult,
+                // The score is a percentage, we convert it into 5-star rating
+                rating: (anilistManga.averageScore/100) * 5,
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                // @ts-ignore
+                status: anilistManga.status,
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                // @ts-ignore
+                banner: anilistManga.bannerImage
+            })
         })
     }
 
