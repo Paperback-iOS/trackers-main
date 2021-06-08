@@ -3,36 +3,37 @@ export interface Result {
 }
 
 export interface Media {
-    id:           number;
-    description:  string;
-    title:        Title;
-    coverImage:   CoverImage;
-    bannerImage:  string;
-    averageScore: number;
-    isAdult:      boolean;
-    popularity:   number;
-    characters:   Characters;
-    staff:        Staff;
-    status:       string;
+    id?:             number;
+    description?:    string;
+    title?:          Title;
+    coverImage?:     CoverImage;
+    bannerImage?:    string;
+    averageScore?:   number;
+    isAdult?:        boolean;
+    popularity?:     number;
+    characters?:     Characters;
+    staff?:          Staff;
+    status?:         string;
+    mediaListEntry?: MediaListEntry;
 }
 
 export interface Characters {
-    edges: CharactersEdge[];
+    edges?: CharactersEdge[];
 }
 
 export interface CharactersEdge {
-    node: CharacterNode;
-    name: null;
-    role: Role;
+    node?: CharacterNode;
+    name?: null;
+    role?: Role;
 }
 
 export interface CharacterNode {
-    image: Image;
-    age:   null | string;
+    image?: Image;
+    age?:   null | string;
 }
 
 export interface Image {
-    large: string;
+    large?: string;
 }
 
 export enum Role {
@@ -42,29 +43,49 @@ export enum Role {
 }
 
 export interface CoverImage {
-    extraLarge: string;
+    extraLarge?: string;
+}
+
+export interface MediaListEntry {
+    id?:              number;
+    status?:          string;
+    progress?:        number;
+    progressVolumes?: number;
+    private?:         boolean;
+    score?:           number;
+    notes?:           null;
+    advancedScores?:  AdvancedScores;
+}
+
+export interface AdvancedScores {
+    Story?:      number;
+    Characters?: number;
+    Visuals?:    number;
+    Audio?:      number;
+    Enjoyment?:  number;
 }
 
 export interface Staff {
-    edges: StaffEdge[];
+    edges?: StaffEdge[];
 }
 
 export interface StaffEdge {
-    node: StaffNode;
-    role: string;
+    node?: StaffNode;
+    role?: string;
 }
 
 export interface StaffNode {
-    name:  Name;
-    image: Image;
+    name?:  Name;
+    image?: Image;
 }
 
 export interface Name {
-    full: string;
+    full?: string;
 }
 
 export interface Title {
-    romaji:  string;
+    romaji?:  string;
     english?: string;
     native?:  string;
+    userPreferred?: string;
 }

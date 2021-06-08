@@ -90,3 +90,35 @@ export const getMangaQuery = (id: number): GraphQLQuery => ({
         id
     }
 })
+
+export const getMangaProgressQuery = (id: number): GraphQLQuery => ({
+    query: `query($id: Int) {
+        Media(id: $id) {
+            id
+            mediaListEntry {
+                id
+                status
+                progress
+                progressVolumes
+                private
+                score
+                notes
+                advancedScores
+            }
+            title {
+                romaji
+                english
+                native
+                userPreferred
+            }
+            coverImage {
+                extraLarge
+            }
+            bannerImage
+            averageScore
+            isAdult
+            popularity
+        }
+    }`,
+    variables: { id }
+})

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import {
     ContentRating,
     Form,
@@ -11,6 +12,7 @@ import {
     Response
 } from 'paperback-extensions-common'
 import {
+    getMangaProgressQuery,
     getMangaQuery,
     searchMangaQuery,
     userProfileQuery
@@ -21,6 +23,7 @@ import * as AnilistManga from './models/anilist-manga'
 import { AnilistResult } from './models/anilist-result'
 
 const ANILIST_GRAPHQL_ENDPOINT = 'https://graphql.anilist.co/'
+const FALLBACK_IMAGE = 'https://via.placeholder.com/100x150'
 
 export const AnilistInfo: SourceInfo = {
     name: 'Anilist',
@@ -59,8 +62,8 @@ export class Anilist extends Tracker {
             }
         }
     })
-    stateManager = createSourceStateManager({
-    })
+
+    stateManager = createSourceStateManager({})
 
     accessToken = {
         get: async (): Promise<string | undefined> => {
@@ -91,14 +94,12 @@ export class Anilist extends Tracker {
                 return await this.stateManager.store('userInfo', null)
             }
 
-            console.log('REQUESTING')
             const response = await this.requestManager.schedule(createRequestObject({
                 url: ANILIST_GRAPHQL_ENDPOINT,
                 method: 'POST',
                 data: userProfileQuery()
             }), 0)
 
-            console.log(response.data)
             const userInfo = AnilistResult<AnilistUser.Result>(response.data).data?.Viewer
 
             await this.stateManager.store('userInfo', userInfo)
@@ -134,10 +135,155 @@ export class Anilist extends Tracker {
         })
     }
 
-    async getMangaForm(_mangaId: string): Promise<Form> {
+    // @ts-ignore
+    getMangaForm(mangaId: string): Form {
         return createForm({
-            sections: async () => [],
-            onSubmit: async (_values) => { return },
+            sections: async () => {
+                console.log(JSON.stringify(getMangaProgressQuery(parseInt(mangaId)), null, 2))
+                const responseTask = this.requestManager.schedule(createRequestObject({
+                    url: ANILIST_GRAPHQL_ENDPOINT,
+                    method: 'POST',
+                    data: getMangaProgressQuery(parseInt(mangaId))
+                }), 1)
+                // Make sure the user settings are up to date
+                const refreshTask = this.userInfo.refresh()
+                const response = (await Promise.all([responseTask, refreshTask]))[0]
+
+                const anilistManga = AnilistResult<AnilistManga.Result>(response.data).data?.Media
+
+                const user = await this.userInfo.get()
+                if(user == null) {
+                    return [
+                        createSection({
+                            id: 'notLoggedInSection',
+                            rows: async () => [
+                                createLabel({
+                                    id: 'notLoggedIn',
+                                    label: 'Not Logged In',
+                                    value: undefined
+                                })
+                            ]
+                        })
+                    ]
+                }
+
+                if(anilistManga == null) { return Promise.reject() }
+
+                return [
+                    createSection({
+                        id: 'userInfo',
+                        rows: async () => [
+                            createHeader({
+                                id: 'header',
+                                imageUrl: user.avatar?.large ?? FALLBACK_IMAGE,
+                                title: user.name ?? 'NOT LOGGED IN',
+                                subtitle: '',
+                                value: undefined
+                            })
+                        ]
+                    }),
+
+                    createSection({
+                        id: 'information',
+                        header: 'Information',
+                        footer: 'Anilist Manga: ' + mangaId,
+                        rows: async () => [
+                            createLabel({
+                                id: 'title',
+                                label: 'Title',
+                                value: anilistManga.title?.userPreferred ?? 'UNKNOWN',
+                            }),
+                            createLabel({
+                                id: 'popularity',
+                                value: anilistManga.popularity?.toString() ?? 'UNKNOWN',
+                                label: 'Popularity'
+                            }),
+                            createLabel({
+                                id: 'rating',
+                                value: anilistManga.averageScore?.toString() ?? 'UNKNOWN',
+                                label: 'Rating'
+                            }),
+                            createLabel({
+                                id: 'status',
+                                value: anilistManga.status ?? 'UNKNOWN',
+                                label: 'Status'
+                            }),
+                            createLabel({
+                                id: 'isAdult',
+                                value: anilistManga.isAdult?.toString() ?? 'UNKNOWN',
+                                label: 'Is Adult'
+                            })
+                        ]
+                    }),
+
+                    createSection({
+                        id: 'manage',
+                        rows: async () => [
+                            createSelect({
+                                id: 'list',
+                                value: [anilistManga.mediaListEntry?.status ?? 'NONE'],
+                                allowsMultiselect: false,
+                                label: 'Status',
+                                displayLabel: (value) => {
+                                    switch (value) {
+                                    case 'CURRENT': return 'Reading'
+                                    case 'PLANNING': return 'Planned'
+                                    case 'COMPLETED': return 'Completed'
+                                    case 'DROPPED': return 'Dropped'
+                                    case 'PAUSED': return 'On-Hold'
+                                    case 'REPEATING': return 'Re-Reading'
+                                    default: return 'None'
+                                    }
+                                },
+                                options: [
+                                    'NONE',
+                                    'CURRENT',
+                                    'PLANNING',
+                                    'COMPLETED',
+                                    'DROPPED',
+                                    'PAUSED',
+                                    'REPEATING'
+                                ]
+                            }),
+                            //@ts-ignore
+                            createStepper({
+                                id: 'chapters',
+                                label: 'Chapter',
+                                value: anilistManga.mediaListEntry?.progress ?? 0,
+                                min: 0,
+                                step: 1
+                            }),
+                            //@ts-ignore
+                            createStepper({
+                                id: 'volume',
+                                label: 'Volume',
+                                value: anilistManga.mediaListEntry?.progressVolumes ?? 0,
+                                min: 0,
+                                step: 1
+                            }),
+                            //@ts-ignore
+                            createStepper({
+                                id: 'score',
+                                label: 'Score',
+                                value: anilistManga.mediaListEntry?.score,
+                                min: 0,
+                                max: this.scoreFormatLimit(user.mediaListOptions?.scoreFormat ?? 'POINT_10'),
+                                step: user.mediaListOptions?.scoreFormat?.includes('DECIMAL') === true ? 0.1 : 1
+                            }),
+                            createInputField({
+                                id: 'notes',
+                                label: 'Notes',
+                                placeholder: 'Notes',
+                                value: anilistManga.mediaListEntry?.notes ?? '',
+                                maskInput: false
+                            })
+                        ]
+                    })
+                ]
+            },
+            onSubmit: async (values) => { 
+                console.log(JSON.stringify(values, null, 2))
+            },
             validate: async (_values) => true 
         })
     } 
@@ -157,18 +303,18 @@ export class Anilist extends Tracker {
         return createTrackedManga({
             id: mangaId,
             mangaInfo: createMangaInfo({
-                image: anilistManga.coverImage.extraLarge,
+                image: anilistManga.coverImage?.extraLarge ?? '',
                 titles: [
-                    anilistManga.title.romaji,
-                    anilistManga.title.english,
-                    anilistManga.title.native
+                    anilistManga.title?.romaji,
+                    anilistManga.title?.english,
+                    anilistManga.title?.native
                 ].filter(x => x != null) as string[],
-                artist: anilistManga.staff.edges.find(x => x.role.toLowerCase() == 'art')?.node.name.full ?? 'Unknown',
-                author: anilistManga.staff.edges.find(x => x.role.toLowerCase() == 'story')?.node.name.full ?? 'Unknown',
+                artist: anilistManga.staff?.edges?.find(x => x?.role?.toLowerCase() == 'art')?.node?.name?.full ?? 'Unknown',
+                author: anilistManga.staff?.edges?.find(x => x?.role?.toLowerCase() == 'story')?.node?.name?.full ?? 'Unknown',
                 desc: anilistManga.description,
                 hentai: anilistManga.isAdult,
-                // The score is a percentage, we convert it into 5-star rating
-                rating: (anilistManga.averageScore/100) * 5,
+                
+                rating: anilistManga.averageScore,
                 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                 // @ts-ignore
                 status: anilistManga.status,
@@ -224,4 +370,11 @@ export class Anilist extends Tracker {
             }
         })
     }
+
+
+    scoreFormatLimit(format: AnilistUser.ScoreFormat): number | undefined {
+        const extracted = /\d+/gi.exec(format)?.[0]
+        return extracted != null ? Number(extracted) : undefined
+    }
 }
+
