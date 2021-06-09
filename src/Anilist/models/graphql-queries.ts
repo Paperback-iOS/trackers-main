@@ -1,7 +1,7 @@
 
 export interface GraphQLQuery {
     query: string
-    variables?: Record<string, unknown>
+    variables?: unknown
 }
 
 export const userProfileQuery = (): GraphQLQuery => ({
@@ -118,6 +118,35 @@ export const getMangaProgressQuery = (id: number): GraphQLQuery => ({
             averageScore
             isAdult
             popularity
+            status
+        }
+    }`,
+    variables: { id }
+})
+
+export interface SaveMangaProgressVariables {
+    id?: number
+    mediaId: number
+    status: string
+    score: number
+    progress: number
+    progressVolumes: number
+    notes: string
+}
+
+export const saveMangaProgressMutation = (variables: SaveMangaProgressVariables): GraphQLQuery => ({
+    query: `mutation($id: Int, $mediaId: Int, $status: MediaListStatus, $score: Float, $progress: Int, $progressVolumes: Int, $notes: String) {
+        SaveMediaListEntry(id: $id, mediaId: $mediaId, status: $status, score: $score, progress: $progress, progressVolumes: $progressVolumes, notes: $notes){
+            id
+        }
+    }`,
+    variables: variables
+})
+
+export const deleteMangaProgressMutation = (id: number): GraphQLQuery => ({
+    query: `mutation($id: Int) {
+        DeleteMediaListEntry(id: $id){
+            deleted
         }
     }`,
     variables: { id }

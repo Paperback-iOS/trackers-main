@@ -13,11 +13,11 @@ module.exports = {
         'sourceType': 'module'
     },
     'plugins': [
-        '@typescript-eslint',
-        'modules-newline'
+        'modules-newline',
+        '@typescript-eslint'
     ],
     'rules': {
-        'indent': [
+        '@typescript-eslint/indent': [
             'error',
             4
         ],

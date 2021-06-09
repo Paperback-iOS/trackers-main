@@ -12,8 +12,11 @@ import {
     Response
 } from 'paperback-extensions-common'
 import {
+    deleteMangaProgressMutation,
     getMangaProgressQuery,
     getMangaQuery,
+    GraphQLQuery,
+    saveMangaProgressMutation,
     searchMangaQuery,
     userProfileQuery
 } from './models/graphql-queries'
@@ -30,7 +33,7 @@ export const AnilistInfo: SourceInfo = {
     author: 'Faizan Durrani',
     contentRating: ContentRating.EVERYONE,
     icon: 'icon.png',
-    version: '1.0.0',
+    version: '1.0.1',
     description: 'Anilist Tracker',
     authorWebsite: 'faizandurrani.github.io',
     websiteBaseURL: 'https://anilist.co'
@@ -91,7 +94,7 @@ export class Anilist extends Tracker {
             const accessToken = await this.accessToken.get()
 
             if(accessToken == null) { 
-                return await this.stateManager.store('userInfo', null)
+                return this.stateManager.store('userInfo', undefined)
             }
 
             const response = await this.requestManager.schedule(createRequestObject({
@@ -139,7 +142,6 @@ export class Anilist extends Tracker {
     getMangaForm(mangaId: string): Form {
         return createForm({
             sections: async () => {
-                console.log(JSON.stringify(getMangaProgressQuery(parseInt(mangaId)), null, 2))
                 const responseTask = this.requestManager.schedule(createRequestObject({
                     url: ANILIST_GRAPHQL_ENDPOINT,
                     method: 'POST',
@@ -186,8 +188,18 @@ export class Anilist extends Tracker {
                     createSection({
                         id: 'information',
                         header: 'Information',
-                        footer: 'Anilist Manga: ' + mangaId,
                         rows: async () => [
+                            // This allows us to get the id when the form is submitted
+                            ...(anilistManga.mediaListEntry != null ? [createLabel({
+                                id: 'id',
+                                label: 'Entry ID',
+                                value: anilistManga.mediaListEntry?.id?.toString()
+                            })] : []),
+                            createLabel({
+                                id: 'mediaId',
+                                label: 'Manga ID',
+                                value: anilistManga.id?.toString() ?? 'UNKNOWN',
+                            }),
                             createLabel({
                                 id: 'title',
                                 label: 'Title',
@@ -217,22 +229,24 @@ export class Anilist extends Tracker {
                     }),
 
                     createSection({
-                        id: 'manage',
+                        id: 'trackStatus',
+                        header: 'Manga Status',
+                        footer: 'Warning: Setting this to NONE will delete the listing from Anilist',
                         rows: async () => [
                             createSelect({
-                                id: 'list',
+                                id: 'status',
                                 value: [anilistManga.mediaListEntry?.status ?? 'NONE'],
                                 allowsMultiselect: false,
                                 label: 'Status',
                                 displayLabel: (value) => {
                                     switch (value) {
-                                    case 'CURRENT': return 'Reading'
-                                    case 'PLANNING': return 'Planned'
-                                    case 'COMPLETED': return 'Completed'
-                                    case 'DROPPED': return 'Dropped'
-                                    case 'PAUSED': return 'On-Hold'
-                                    case 'REPEATING': return 'Re-Reading'
-                                    default: return 'None'
+                                        case 'CURRENT': return 'Reading'
+                                        case 'PLANNING': return 'Planned'
+                                        case 'COMPLETED': return 'Completed'
+                                        case 'DROPPED': return 'Dropped'
+                                        case 'PAUSED': return 'On-Hold'
+                                        case 'REPEATING': return 'Re-Reading'
+                                        default: return 'None'
                                     }
                                 },
                                 options: [
@@ -244,10 +258,18 @@ export class Anilist extends Tracker {
                                     'PAUSED',
                                     'REPEATING'
                                 ]
-                            }),
+                            })
+                        ]
+                    }),
+
+
+                    createSection({
+                        id: 'manage',
+                        header: 'Progress',
+                        rows: async () => [
                             //@ts-ignore
                             createStepper({
-                                id: 'chapters',
+                                id: 'progress',
                                 label: 'Chapter',
                                 value: anilistManga.mediaListEntry?.progress ?? 0,
                                 min: 0,
@@ -255,7 +277,7 @@ export class Anilist extends Tracker {
                             }),
                             //@ts-ignore
                             createStepper({
-                                id: 'volume',
+                                id: 'progressVolumes',
                                 label: 'Volume',
                                 value: anilistManga.mediaListEntry?.progressVolumes ?? 0,
                                 min: 0,
@@ -281,8 +303,32 @@ export class Anilist extends Tracker {
                     })
                 ]
             },
-            onSubmit: async (values) => { 
-                console.log(JSON.stringify(values, null, 2))
+            onSubmit: async (values) => {
+                let mutation: GraphQLQuery
+                const status = values['status']?.[0] ?? ''
+                const id = values['id'] != null ? Number(values['id']) : undefined
+
+                if(status == 'NONE' && id != null) {
+                    mutation = deleteMangaProgressMutation(id)
+                } else {
+                    mutation = saveMangaProgressMutation({
+                        id: id,
+                        mediaId: Number(values['mediaId']),
+                        status: status,
+                        notes: values['notes'],
+                        progress: Number(values['progress']),
+                        progressVolumes: Number(values['progressVolumes']),
+                        score: Number(values['score'])
+                    })
+                }
+
+                console.log(JSON.stringify(mutation, null, 2))
+
+                await this.requestManager.schedule(createRequestObject({
+                    url: ANILIST_GRAPHQL_ENDPOINT,
+                    method: 'POST',
+                    data: mutation
+                }), 1)
             },
             validate: async (_values) => true 
         })
@@ -343,7 +389,7 @@ export class Anilist extends Tracker {
                         label: 'Logout',
                         value: undefined,
                         onTap: async () => {
-                            this.accessToken.set(undefined)
+                            await this.accessToken.set(undefined)
                         }
                     })
                 ]; else return [
@@ -358,12 +404,7 @@ export class Anilist extends Tracker {
                         },
                         value: undefined,
                         successHandler: async (token, _refreshToken) => {
-                            try {
-                                await this.accessToken.set(token)
-                                console.log(token)
-                            } catch(error) {
-                                console.log(error)
-                            }
+                            await this.accessToken.set(token)
                         }
                     })
                 ]
