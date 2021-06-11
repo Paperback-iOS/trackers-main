@@ -351,7 +351,7 @@ exports.AnilistInfo = {
     author: 'Faizan Durrani',
     contentRating: paperback_extensions_common_1.ContentRating.EVERYONE,
     icon: 'icon.png',
-    version: '1.0.1',
+    version: '1.0.2',
     description: 'Anilist Tracker',
     authorWebsite: 'faizandurrani.github.io',
     websiteBaseURL: 'https://anilist.co'
@@ -435,6 +435,7 @@ class Anilist extends paperback_extensions_common_1.Tracker {
                 data: graphql_queries_1.searchMangaQuery(nextPage, (_b = query.title) !== null && _b !== void 0 ? _b : '')
             }), 1);
             const anilistPage = (_c = anilist_result_1.AnilistResult(response.data).data) === null || _c === void 0 ? void 0 : _c.Page;
+            console.log(JSON.stringify(anilistPage, null, 2));
             return createPagedResults({
                 results: (_d = anilistPage === null || anilistPage === void 0 ? void 0 : anilistPage.media.map(manga => {
                     var _a;
@@ -504,7 +505,7 @@ class Anilist extends paperback_extensions_common_1.Tracker {
                         id: 'information',
                         header: 'Information',
                         rows: () => __awaiter(this, void 0, void 0, function* () {
-                            var _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;
+                            var _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
                             return [
                                 // This allows us to get the id when the form is submitted
                                 ...(anilistManga.mediaListEntry != null ? [createLabel({
@@ -515,31 +516,31 @@ class Anilist extends paperback_extensions_common_1.Tracker {
                                 createLabel({
                                     id: 'mediaId',
                                     label: 'Manga ID',
-                                    value: (_h = (_g = anilistManga.id) === null || _g === void 0 ? void 0 : _g.toString()) !== null && _h !== void 0 ? _h : 'UNKNOWN',
+                                    value: (_g = anilistManga.id) === null || _g === void 0 ? void 0 : _g.toString(),
                                 }),
                                 createLabel({
-                                    id: 'title',
+                                    id: 'mangaTitle',
                                     label: 'Title',
-                                    value: (_k = (_j = anilistManga.title) === null || _j === void 0 ? void 0 : _j.userPreferred) !== null && _k !== void 0 ? _k : 'UNKNOWN',
+                                    value: (_j = (_h = anilistManga.title) === null || _h === void 0 ? void 0 : _h.userPreferred) !== null && _j !== void 0 ? _j : 'N/A',
                                 }),
                                 createLabel({
-                                    id: 'popularity',
-                                    value: (_m = (_l = anilistManga.popularity) === null || _l === void 0 ? void 0 : _l.toString()) !== null && _m !== void 0 ? _m : 'UNKNOWN',
+                                    id: 'mangaPopularity',
+                                    value: (_l = (_k = anilistManga.popularity) === null || _k === void 0 ? void 0 : _k.toString()) !== null && _l !== void 0 ? _l : 'N/A',
                                     label: 'Popularity'
                                 }),
                                 createLabel({
-                                    id: 'rating',
-                                    value: (_p = (_o = anilistManga.averageScore) === null || _o === void 0 ? void 0 : _o.toString()) !== null && _p !== void 0 ? _p : 'UNKNOWN',
+                                    id: 'mangaRating',
+                                    value: (_o = (_m = anilistManga.averageScore) === null || _m === void 0 ? void 0 : _m.toString()) !== null && _o !== void 0 ? _o : 'N/A',
                                     label: 'Rating'
                                 }),
                                 createLabel({
-                                    id: 'status',
-                                    value: (_q = anilistManga.status) !== null && _q !== void 0 ? _q : 'UNKNOWN',
+                                    id: 'mangaStatus',
+                                    value: (_p = anilistManga.status) !== null && _p !== void 0 ? _p : 'N/A',
                                     label: 'Status'
                                 }),
                                 createLabel({
-                                    id: 'isAdult',
-                                    value: (_s = (_r = anilistManga.isAdult) === null || _r === void 0 ? void 0 : _r.toString()) !== null && _s !== void 0 ? _s : 'UNKNOWN',
+                                    id: 'mangaIsAdult',
+                                    value: (_r = (_q = anilistManga.isAdult) === null || _q === void 0 ? void 0 : _q.toString()) !== null && _r !== void 0 ? _r : 'N/A',
                                     label: 'Is Adult'
                                 })
                             ];
@@ -550,11 +551,11 @@ class Anilist extends paperback_extensions_common_1.Tracker {
                         header: 'Manga Status',
                         footer: 'Warning: Setting this to NONE will delete the listing from Anilist',
                         rows: () => __awaiter(this, void 0, void 0, function* () {
-                            var _t, _u;
+                            var _s, _t;
                             return [
                                 createSelect({
                                     id: 'status',
-                                    value: [(_u = (_t = anilistManga.mediaListEntry) === null || _t === void 0 ? void 0 : _t.status) !== null && _u !== void 0 ? _u : 'NONE'],
+                                    value: [(_t = (_s = anilistManga.mediaListEntry) === null || _s === void 0 ? void 0 : _s.status) !== null && _t !== void 0 ? _t : 'NONE'],
                                     allowsMultiselect: false,
                                     label: 'Status',
                                     displayLabel: (value) => {
@@ -585,13 +586,13 @@ class Anilist extends paperback_extensions_common_1.Tracker {
                         id: 'manage',
                         header: 'Progress',
                         rows: () => __awaiter(this, void 0, void 0, function* () {
-                            var _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5;
+                            var _u, _v, _w, _x;
                             return [
                                 //@ts-ignore
                                 createStepper({
                                     id: 'progress',
                                     label: 'Chapter',
-                                    value: (_w = (_v = anilistManga.mediaListEntry) === null || _v === void 0 ? void 0 : _v.progress) !== null && _w !== void 0 ? _w : 0,
+                                    value: (_v = (_u = anilistManga.mediaListEntry) === null || _u === void 0 ? void 0 : _u.progress) !== null && _v !== void 0 ? _v : 0,
                                     min: 0,
                                     step: 1
                                 }),
@@ -599,24 +600,44 @@ class Anilist extends paperback_extensions_common_1.Tracker {
                                 createStepper({
                                     id: 'progressVolumes',
                                     label: 'Volume',
-                                    value: (_y = (_x = anilistManga.mediaListEntry) === null || _x === void 0 ? void 0 : _x.progressVolumes) !== null && _y !== void 0 ? _y : 0,
+                                    value: (_x = (_w = anilistManga.mediaListEntry) === null || _w === void 0 ? void 0 : _w.progressVolumes) !== null && _x !== void 0 ? _x : 0,
                                     min: 0,
                                     step: 1
-                                }),
+                                })
+                            ];
+                        })
+                    }),
+                    createSection({
+                        id: 'rateSection',
+                        header: 'Rating',
+                        footer: 'This uses your rating preference set on AniList',
+                        rows: () => __awaiter(this, void 0, void 0, function* () {
+                            var _y, _z, _0, _1, _2;
+                            return [
                                 //@ts-ignore
                                 createStepper({
                                     id: 'score',
                                     label: 'Score',
-                                    value: (_z = anilistManga.mediaListEntry) === null || _z === void 0 ? void 0 : _z.score,
+                                    value: (_y = anilistManga.mediaListEntry) === null || _y === void 0 ? void 0 : _y.score,
                                     min: 0,
-                                    max: this.scoreFormatLimit((_1 = (_0 = user.mediaListOptions) === null || _0 === void 0 ? void 0 : _0.scoreFormat) !== null && _1 !== void 0 ? _1 : 'POINT_10'),
-                                    step: ((_3 = (_2 = user.mediaListOptions) === null || _2 === void 0 ? void 0 : _2.scoreFormat) === null || _3 === void 0 ? void 0 : _3.includes('DECIMAL')) === true ? 0.1 : 1
-                                }),
+                                    max: this.scoreFormatLimit((_0 = (_z = user.mediaListOptions) === null || _z === void 0 ? void 0 : _z.scoreFormat) !== null && _0 !== void 0 ? _0 : 'POINT_10'),
+                                    step: ((_2 = (_1 = user.mediaListOptions) === null || _1 === void 0 ? void 0 : _1.scoreFormat) === null || _2 === void 0 ? void 0 : _2.includes('DECIMAL')) === true ? 0.1 : 1
+                                })
+                            ];
+                        })
+                    }),
+                    createSection({
+                        id: 'mangaNotes',
+                        header: 'Notes',
+                        rows: () => __awaiter(this, void 0, void 0, function* () {
+                            var _3, _4;
+                            return [
                                 createInputField({
                                     id: 'notes',
-                                    label: 'Notes',
+                                    // @ts-ignore
+                                    label: undefined,
                                     placeholder: 'Notes',
-                                    value: (_5 = (_4 = anilistManga.mediaListEntry) === null || _4 === void 0 ? void 0 : _4.notes) !== null && _5 !== void 0 ? _5 : '',
+                                    value: (_4 = (_3 = anilistManga.mediaListEntry) === null || _3 === void 0 ? void 0 : _3.notes) !== null && _4 !== void 0 ? _4 : '',
                                     maskInput: false
                                 })
                             ];
@@ -625,9 +646,9 @@ class Anilist extends paperback_extensions_common_1.Tracker {
                 ];
             }),
             onSubmit: (values) => __awaiter(this, void 0, void 0, function* () {
-                var _6, _7;
+                var _5, _6;
                 let mutation;
-                const status = (_7 = (_6 = values['status']) === null || _6 === void 0 ? void 0 : _6[0]) !== null && _7 !== void 0 ? _7 : '';
+                const status = (_6 = (_5 = values['status']) === null || _5 === void 0 ? void 0 : _5[0]) !== null && _6 !== void 0 ? _6 : '';
                 const id = values['id'] != null ? Number(values['id']) : undefined;
                 if (status == 'NONE' && id != null) {
                     mutation = graphql_queries_1.deleteMangaProgressMutation(id);
