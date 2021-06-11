@@ -33,7 +33,7 @@ export const AnilistInfo: SourceInfo = {
     author: 'Faizan Durrani',
     contentRating: ContentRating.EVERYONE,
     icon: 'icon.png',
-    version: '1.0.1',
+    version: '1.0.2',
     description: 'Anilist Tracker',
     authorWebsite: 'faizandurrani.github.io',
     websiteBaseURL: 'https://anilist.co'
@@ -125,6 +125,8 @@ export class Anilist extends Tracker {
         }), 1)
 
         const anilistPage = AnilistResult<AnilistPage.Result>(response.data).data?.Page
+
+        console.log(JSON.stringify(anilistPage, null, 2))
         
         return createPagedResults({
             results: anilistPage?.media.map(manga => createMangaTile({
@@ -198,31 +200,32 @@ export class Anilist extends Tracker {
                             createLabel({
                                 id: 'mediaId',
                                 label: 'Manga ID',
-                                value: anilistManga.id?.toString() ?? 'UNKNOWN',
+                                value: anilistManga.id?.toString(),
                             }),
+                            
                             createLabel({
-                                id: 'title',
+                                id: 'mangaTitle',
                                 label: 'Title',
-                                value: anilistManga.title?.userPreferred ?? 'UNKNOWN',
+                                value: anilistManga.title?.userPreferred ?? 'N/A',
                             }),
                             createLabel({
-                                id: 'popularity',
-                                value: anilistManga.popularity?.toString() ?? 'UNKNOWN',
+                                id: 'mangaPopularity',
+                                value: anilistManga.popularity?.toString() ?? 'N/A',
                                 label: 'Popularity'
                             }),
                             createLabel({
-                                id: 'rating',
-                                value: anilistManga.averageScore?.toString() ?? 'UNKNOWN',
+                                id: 'mangaRating',
+                                value: anilistManga.averageScore?.toString() ?? 'N/A',
                                 label: 'Rating'
                             }),
                             createLabel({
-                                id: 'status',
-                                value: anilistManga.status ?? 'UNKNOWN',
+                                id: 'mangaStatus',
+                                value: anilistManga.status ?? 'N/A',
                                 label: 'Status'
                             }),
                             createLabel({
-                                id: 'isAdult',
-                                value: anilistManga.isAdult?.toString() ?? 'UNKNOWN',
+                                id: 'mangaIsAdult',
+                                value: anilistManga.isAdult?.toString() ?? 'N/A',
                                 label: 'Is Adult'
                             })
                         ]
@@ -282,7 +285,15 @@ export class Anilist extends Tracker {
                                 value: anilistManga.mediaListEntry?.progressVolumes ?? 0,
                                 min: 0,
                                 step: 1
-                            }),
+                            })
+                        ]
+                    }),
+
+                    createSection({
+                        id: 'rateSection',
+                        header: 'Rating',
+                        footer: 'This uses your rating preference set on AniList',
+                        rows: async () => [
                             //@ts-ignore
                             createStepper({
                                 id: 'score',
@@ -291,10 +302,18 @@ export class Anilist extends Tracker {
                                 min: 0,
                                 max: this.scoreFormatLimit(user.mediaListOptions?.scoreFormat ?? 'POINT_10'),
                                 step: user.mediaListOptions?.scoreFormat?.includes('DECIMAL') === true ? 0.1 : 1
-                            }),
+                            })
+                        ]
+                    }),
+
+                    createSection({
+                        id: 'mangaNotes',
+                        header: 'Notes',
+                        rows: async () => [
                             createInputField({
                                 id: 'notes',
-                                label: 'Notes',
+                                // @ts-ignore
+                                label: undefined,
                                 placeholder: 'Notes',
                                 value: anilistManga.mediaListEntry?.notes ?? '',
                                 maskInput: false
