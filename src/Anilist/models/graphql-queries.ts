@@ -126,12 +126,12 @@ export const getMangaProgressQuery = (id: number): GraphQLQuery => ({
 
 export interface SaveMangaProgressVariables {
     id?: number
-    mediaId: number
-    status: string
-    score: number
-    progress: number
-    progressVolumes: number
-    notes: string
+    mediaId?: number
+    status?: string
+    score?: number
+    progress?: number
+    progressVolumes?: number
+    notes?: string
 }
 
 export const saveMangaProgressMutation = (variables: SaveMangaProgressVariables): GraphQLQuery => ({

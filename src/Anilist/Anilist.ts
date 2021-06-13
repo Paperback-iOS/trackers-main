@@ -33,7 +33,7 @@ export const AnilistInfo: SourceInfo = {
     author: 'Faizan Durrani',
     contentRating: ContentRating.EVERYONE,
     icon: 'icon.png',
-    version: '1.0.2',
+    version: '1.0.3',
     description: 'Anilist Tracker',
     authorWebsite: 'faizandurrani.github.io',
     websiteBaseURL: 'https://anilist.co'
@@ -429,6 +429,34 @@ export class Anilist extends Tracker {
                 ]
             }
         })
+    }
+
+    // @ts-ignore
+    async processActionQueue(actionQueue: TrackedMangaChapterReadAction): Promise<void> {
+        const chapterReadActions = await actionQueue.queuedChapterReadActions()
+
+        for(const readAction of chapterReadActions) {
+            try {
+                const response = await this.requestManager.schedule(createRequestObject({
+                    url: ANILIST_GRAPHQL_ENDPOINT,
+                    method: 'POST',
+                    data: saveMangaProgressMutation({
+                        mediaId: readAction.mangaId,
+                        progress: readAction.chapterNumber,
+                        progressVolumes: readAction.volumeNumber
+                    })
+                }), 0)
+
+                if(response.status < 400) {
+                    await actionQueue.discardChapterReadAction(readAction)
+                } else {
+                    await actionQueue.retryChapterReadAction(readAction)
+                }
+            } catch(error) {
+                console.log(error)
+                await actionQueue.retryChapterReadAction(readAction)
+            }
+        }
     }
 
 
