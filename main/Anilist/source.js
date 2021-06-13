@@ -351,7 +351,7 @@ exports.AnilistInfo = {
     author: 'Faizan Durrani',
     contentRating: paperback_extensions_common_1.ContentRating.EVERYONE,
     icon: 'icon.png',
-    version: '1.0.2',
+    version: '1.0.3',
     description: 'Anilist Tracker',
     authorWebsite: 'faizandurrani.github.io',
     websiteBaseURL: 'https://anilist.co'
@@ -753,6 +753,35 @@ class Anilist extends paperback_extensions_common_1.Tracker {
                         ];
                 })
             });
+        });
+    }
+    // @ts-ignore
+    processActionQueue(actionQueue) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const chapterReadActions = yield actionQueue.queuedChapterReadActions();
+            for (const readAction of chapterReadActions) {
+                try {
+                    const response = yield this.requestManager.schedule(createRequestObject({
+                        url: ANILIST_GRAPHQL_ENDPOINT,
+                        method: 'POST',
+                        data: graphql_queries_1.saveMangaProgressMutation({
+                            mediaId: readAction.mangaId,
+                            progress: readAction.chapterNumber,
+                            progressVolumes: readAction.volumeNumber
+                        })
+                    }), 0);
+                    if (response.status < 400) {
+                        yield actionQueue.discardChapterReadAction(readAction);
+                    }
+                    else {
+                        yield actionQueue.retryChapterReadAction(readAction);
+                    }
+                }
+                catch (error) {
+                    console.log(error);
+                    yield actionQueue.retryChapterReadAction(readAction);
+                }
+            }
         });
     }
     scoreFormatLimit(format) {
