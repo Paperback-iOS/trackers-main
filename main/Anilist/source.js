@@ -96,7 +96,7 @@ __exportStar(require("./base"), exports);
 __exportStar(require("./models"), exports);
 __exportStar(require("./APIWrapper"), exports);
 
-},{"./APIWrapper":1,"./base":4,"./models":42}],6:[function(require,module,exports){
+},{"./APIWrapper":1,"./base":4,"./models":45}],6:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 
@@ -133,6 +133,8 @@ arguments[4][6][0].apply(exports,arguments)
 },{"dup":6}],22:[function(require,module,exports){
 arguments[4][6][0].apply(exports,arguments)
 },{"dup":6}],23:[function(require,module,exports){
+arguments[4][6][0].apply(exports,arguments)
+},{"dup":6}],24:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -159,8 +161,9 @@ __exportStar(require("./Select"), exports);
 __exportStar(require("./Switch"), exports);
 __exportStar(require("./WebViewButton"), exports);
 __exportStar(require("./FormRow"), exports);
+__exportStar(require("./Stepper"), exports);
 
-},{"./Button":9,"./Form":10,"./FormRow":11,"./Header":12,"./InputField":13,"./Label":14,"./Link":15,"./MultilineLabel":16,"./NavigationButton":17,"./OAuthButton":18,"./Section":19,"./Select":20,"./Switch":21,"./WebViewButton":22}],24:[function(require,module,exports){
+},{"./Button":9,"./Form":10,"./FormRow":11,"./Header":12,"./InputField":13,"./Label":14,"./Link":15,"./MultilineLabel":16,"./NavigationButton":17,"./OAuthButton":18,"./Section":19,"./Select":20,"./Stepper":21,"./Switch":22,"./WebViewButton":23}],25:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.HomeSectionType = void 0;
@@ -172,7 +175,7 @@ var HomeSectionType;
     HomeSectionType["featured"] = "featured";
 })(HomeSectionType = exports.HomeSectionType || (exports.HomeSectionType = {}));
 
-},{}],25:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LanguageCode = void 0;
@@ -220,7 +223,7 @@ var LanguageCode;
     LanguageCode["VIETNAMESE"] = "vn";
 })(LanguageCode = exports.LanguageCode || (exports.LanguageCode = {}));
 
-},{}],26:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MangaStatus = void 0;
@@ -233,9 +236,7 @@ var MangaStatus;
     MangaStatus[MangaStatus["HIATUS"] = 4] = "HIATUS";
 })(MangaStatus = exports.MangaStatus || (exports.MangaStatus = {}));
 
-},{}],27:[function(require,module,exports){
-arguments[4][6][0].apply(exports,arguments)
-},{"dup":6}],28:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 arguments[4][6][0].apply(exports,arguments)
 },{"dup":6}],29:[function(require,module,exports){
 arguments[4][6][0].apply(exports,arguments)
@@ -254,6 +255,16 @@ arguments[4][6][0].apply(exports,arguments)
 },{"dup":6}],36:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.SearchOperator = void 0;
+var SearchOperator;
+(function (SearchOperator) {
+    SearchOperator["AND"] = "AND";
+    SearchOperator["OR"] = "OR";
+})(SearchOperator = exports.SearchOperator || (exports.SearchOperator = {}));
+
+},{}],37:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.ContentRating = void 0;
 /**
  * A content rating to be attributed to each source.
@@ -265,11 +276,11 @@ var ContentRating;
     ContentRating["ADULT"] = "ADULT";
 })(ContentRating = exports.ContentRating || (exports.ContentRating = {}));
 
-},{}],37:[function(require,module,exports){
-arguments[4][6][0].apply(exports,arguments)
-},{"dup":6}],38:[function(require,module,exports){
+},{}],38:[function(require,module,exports){
 arguments[4][6][0].apply(exports,arguments)
 },{"dup":6}],39:[function(require,module,exports){
+arguments[4][6][0].apply(exports,arguments)
+},{"dup":6}],40:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TagType = void 0;
@@ -287,11 +298,15 @@ var TagType;
     TagType["RED"] = "danger";
 })(TagType = exports.TagType || (exports.TagType = {}));
 
-},{}],40:[function(require,module,exports){
-arguments[4][6][0].apply(exports,arguments)
-},{"dup":6}],41:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 arguments[4][6][0].apply(exports,arguments)
 },{"dup":6}],42:[function(require,module,exports){
+arguments[4][6][0].apply(exports,arguments)
+},{"dup":6}],43:[function(require,module,exports){
+arguments[4][6][0].apply(exports,arguments)
+},{"dup":6}],44:[function(require,module,exports){
+arguments[4][6][0].apply(exports,arguments)
+},{"dup":6}],45:[function(require,module,exports){
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -326,8 +341,10 @@ __exportStar(require("./RequestInterceptor"), exports);
 __exportStar(require("./DynamicUI"), exports);
 __exportStar(require("./TrackedManga"), exports);
 __exportStar(require("./SourceManga"), exports);
+__exportStar(require("./TrackedMangaChapterReadAction"), exports);
+__exportStar(require("./TrackerActionQueue"), exports);
 
-},{"./Chapter":6,"./ChapterDetails":7,"./Constants":8,"./DynamicUI":23,"./HomeSection":24,"./Languages":25,"./Manga":26,"./MangaTile":27,"./MangaUpdate":28,"./PagedResults":29,"./RequestHeaders":30,"./RequestInterceptor":31,"./RequestManager":32,"./RequestObject":33,"./ResponseObject":34,"./SearchRequest":35,"./SourceInfo":36,"./SourceManga":37,"./SourceStateManager":38,"./SourceTag":39,"./TagSection":40,"./TrackedManga":41}],43:[function(require,module,exports){
+},{"./Chapter":6,"./ChapterDetails":7,"./Constants":8,"./DynamicUI":24,"./HomeSection":25,"./Languages":26,"./Manga":27,"./MangaTile":28,"./MangaUpdate":29,"./PagedResults":30,"./RequestHeaders":31,"./RequestInterceptor":32,"./RequestManager":33,"./RequestObject":34,"./ResponseObject":35,"./SearchRequest":36,"./SourceInfo":37,"./SourceManga":38,"./SourceStateManager":39,"./SourceTag":40,"./TagSection":41,"./TrackedManga":42,"./TrackedMangaChapterReadAction":43,"./TrackerActionQueue":44}],46:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -351,7 +368,7 @@ exports.AnilistInfo = {
     author: 'Faizan Durrani',
     contentRating: paperback_extensions_common_1.ContentRating.EVERYONE,
     icon: 'icon.png',
-    version: '1.0.3',
+    version: '1.0.4',
     description: 'Anilist Tracker',
     authorWebsite: 'faizandurrani.github.io',
     websiteBaseURL: 'https://anilist.co'
@@ -792,7 +809,7 @@ class Anilist extends paperback_extensions_common_1.Tracker {
 }
 exports.Anilist = Anilist;
 
-},{"./models/anilist-result":44,"./models/graphql-queries":45,"paperback-extensions-common":5}],44:[function(require,module,exports){
+},{"./models/anilist-result":47,"./models/graphql-queries":48,"paperback-extensions-common":5}],47:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AnilistResult = void 0;
@@ -809,7 +826,7 @@ function AnilistResult(json) {
 }
 exports.AnilistResult = AnilistResult;
 
-},{}],45:[function(require,module,exports){
+},{}],48:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteMangaProgressMutation = exports.saveMangaProgressMutation = exports.getMangaProgressQuery = exports.getMangaQuery = exports.searchMangaQuery = exports.userProfileQuery = void 0;
@@ -833,7 +850,7 @@ const searchMangaQuery = (page, search) => ({
                 currentPage
                 hasNextPage
             }
-            media(type: MANGA, search: $search) {
+            media(type: MANGA, search: $search, format_not: NOVEL) {
                 id
                 title {
                     userPreferred
@@ -952,5 +969,5 @@ const deleteMangaProgressMutation = (id) => ({
 });
 exports.deleteMangaProgressMutation = deleteMangaProgressMutation;
 
-},{}]},{},[43])(43)
+},{}]},{},[46])(46)
 });
