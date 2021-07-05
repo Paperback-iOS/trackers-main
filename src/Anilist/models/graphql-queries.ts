@@ -24,7 +24,7 @@ export const searchMangaQuery = (page: number, search: string): GraphQLQuery => 
                 currentPage
                 hasNextPage
             }
-            media(type: MANGA, search: $search) {
+            media(type: MANGA, search: $search, format_not: NOVEL) {
                 id
                 title {
                     userPreferred
