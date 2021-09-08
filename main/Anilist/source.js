@@ -757,7 +757,7 @@ class Anilist extends paperback_extensions_common_1.Tracker {
                                 id: 'anilistLogin',
                                 authorizeEndpoint: 'https://anilist.co/api/v2/oauth/authorize',
                                 clientId: '5459',
-                                redirectUri: 'paperback://oauth-callback',
+                                //                         redirectUri: 'paperback://oauth-callback',
                                 label: 'Login with Anilist',
                                 responseType: {
                                     type: 'token'
