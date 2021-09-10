@@ -41,7 +41,7 @@ export const AnilistInfo: SourceInfo = {
 
 export class Anilist extends Tracker {
     requestManager = createRequestManager({
-        requestsPerSecond: 5,
+        requestsPerSecond: 2.5,
         requestTimeout: 20000,
         interceptor: {
             // Authorization injector
