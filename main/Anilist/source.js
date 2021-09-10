@@ -377,7 +377,7 @@ class Anilist extends paperback_extensions_common_1.Tracker {
     constructor() {
         super(...arguments);
         this.requestManager = createRequestManager({
-            requestsPerSecond: 5,
+            requestsPerSecond: 2.5,
             requestTimeout: 20000,
             interceptor: {
                 // Authorization injector
