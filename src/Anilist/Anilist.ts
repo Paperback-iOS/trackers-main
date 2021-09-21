@@ -376,7 +376,7 @@ export class Anilist extends Tracker {
                 ].filter(x => x != null) as string[],
                 artist: anilistManga.staff?.edges?.find(x => x?.role?.toLowerCase() == 'art')?.node?.name?.full ?? 'Unknown',
                 author: anilistManga.staff?.edges?.find(x => x?.role?.toLowerCase() == 'story')?.node?.name?.full ?? 'Unknown',
-                desc: anilistManga.description,
+                desc: anilistManga?.description || '',
                 hentai: anilistManga.isAdult,
                 
                 rating: anilistManga.averageScore,
