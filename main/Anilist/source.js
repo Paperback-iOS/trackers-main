@@ -368,7 +368,7 @@ exports.AnilistInfo = {
     author: 'Faizan Durrani',
     contentRating: paperback_extensions_common_1.ContentRating.EVERYONE,
     icon: 'icon.png',
-    version: '1.0.5',
+    version: '1.0.6',
     description: 'Anilist Tracker',
     authorWebsite: 'faizandurrani.github.io',
     websiteBaseURL: 'https://anilist.co'
@@ -714,7 +714,7 @@ class Anilist extends paperback_extensions_common_1.Tracker {
                     ].filter(x => x != null),
                     artist: (_m = (_l = (_k = (_j = (_h = (_g = anilistManga.staff) === null || _g === void 0 ? void 0 : _g.edges) === null || _h === void 0 ? void 0 : _h.find(x => { var _a; return ((_a = x === null || x === void 0 ? void 0 : x.role) === null || _a === void 0 ? void 0 : _a.toLowerCase()) == 'art'; })) === null || _j === void 0 ? void 0 : _j.node) === null || _k === void 0 ? void 0 : _k.name) === null || _l === void 0 ? void 0 : _l.full) !== null && _m !== void 0 ? _m : 'Unknown',
                     author: (_t = (_s = (_r = (_q = (_p = (_o = anilistManga.staff) === null || _o === void 0 ? void 0 : _o.edges) === null || _p === void 0 ? void 0 : _p.find(x => { var _a; return ((_a = x === null || x === void 0 ? void 0 : x.role) === null || _a === void 0 ? void 0 : _a.toLowerCase()) == 'story'; })) === null || _q === void 0 ? void 0 : _q.node) === null || _r === void 0 ? void 0 : _r.name) === null || _s === void 0 ? void 0 : _s.full) !== null && _t !== void 0 ? _t : 'Unknown',
-                    desc: anilistManga.description,
+                    desc: (anilistManga === null || anilistManga === void 0 ? void 0 : anilistManga.description) || '',
                     hentai: anilistManga.isAdult,
                     rating: anilistManga.averageScore,
                     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
