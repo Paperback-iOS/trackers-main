@@ -33,7 +33,7 @@ export const AnilistInfo: SourceInfo = {
     author: 'Faizan Durrani',
     contentRating: ContentRating.EVERYONE,
     icon: 'icon.png',
-    version: '1.0.5',
+    version: '1.0.6',
     description: 'Anilist Tracker',
     authorWebsite: 'faizandurrani.github.io',
     websiteBaseURL: 'https://anilist.co'
@@ -376,7 +376,7 @@ export class Anilist extends Tracker {
                 ].filter(x => x != null) as string[],
                 artist: anilistManga.staff?.edges?.find(x => x?.role?.toLowerCase() == 'art')?.node?.name?.full ?? 'Unknown',
                 author: anilistManga.staff?.edges?.find(x => x?.role?.toLowerCase() == 'story')?.node?.name?.full ?? 'Unknown',
-                desc: anilistManga.description,
+                desc: anilistManga?.description || '',
                 hentai: anilistManga.isAdult,
                 
                 rating: anilistManga.averageScore,
