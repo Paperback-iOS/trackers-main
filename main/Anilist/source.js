@@ -667,6 +667,7 @@ class Anilist extends paperback_extensions_common_1.Tracker {
                 let mutation;
                 const status = (_6 = (_5 = values['status']) === null || _5 === void 0 ? void 0 : _5[0]) !== null && _6 !== void 0 ? _6 : '';
                 const id = values['id'] != null ? Number(values['id']) : undefined;
+                const progressVolumes = values['progressVolumes'] ? Number(values['progressVolumes']) : undefined;
                 if (status == 'NONE' && id != null) {
                     mutation = graphql_queries_1.deleteMangaProgressMutation(id);
                 }
@@ -677,7 +678,7 @@ class Anilist extends paperback_extensions_common_1.Tracker {
                         status: status,
                         notes: values['notes'],
                         progress: Number(values['progress']),
-                        progressVolumes: Number(values['progressVolumes']),
+                        progressVolumes: progressVolumes,
                         score: Number(values['score'])
                     });
                 }
