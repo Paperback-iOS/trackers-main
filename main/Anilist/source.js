@@ -368,7 +368,7 @@ exports.AnilistInfo = {
     author: 'Faizan Durrani',
     contentRating: paperback_extensions_common_1.ContentRating.EVERYONE,
     icon: 'icon.png',
-    version: '1.0.6',
+    version: '1.0.7',
     description: 'Anilist Tracker',
     authorWebsite: 'faizandurrani.github.io',
     websiteBaseURL: 'https://anilist.co'
@@ -629,16 +629,16 @@ class Anilist extends paperback_extensions_common_1.Tracker {
                         header: 'Rating',
                         footer: 'This uses your rating preference set on AniList',
                         rows: () => __awaiter(this, void 0, void 0, function* () {
-                            var _y, _z, _0, _1, _2;
+                            var _y, _z, _0, _1, _2, _3;
                             return [
                                 //@ts-ignore
                                 createStepper({
                                     id: 'score',
                                     label: 'Score',
-                                    value: (_y = anilistManga.mediaListEntry) === null || _y === void 0 ? void 0 : _y.score,
+                                    value: (_z = (_y = anilistManga.mediaListEntry) === null || _y === void 0 ? void 0 : _y.score) !== null && _z !== void 0 ? _z : 0,
                                     min: 0,
-                                    max: this.scoreFormatLimit((_0 = (_z = user.mediaListOptions) === null || _z === void 0 ? void 0 : _z.scoreFormat) !== null && _0 !== void 0 ? _0 : 'POINT_10'),
-                                    step: ((_2 = (_1 = user.mediaListOptions) === null || _1 === void 0 ? void 0 : _1.scoreFormat) === null || _2 === void 0 ? void 0 : _2.includes('DECIMAL')) === true ? 0.1 : 1
+                                    max: this.scoreFormatLimit((_1 = (_0 = user.mediaListOptions) === null || _0 === void 0 ? void 0 : _0.scoreFormat) !== null && _1 !== void 0 ? _1 : 'POINT_10'),
+                                    step: ((_3 = (_2 = user.mediaListOptions) === null || _2 === void 0 ? void 0 : _2.scoreFormat) === null || _3 === void 0 ? void 0 : _3.includes('DECIMAL')) === true ? 0.1 : 1
                                 })
                             ];
                         })
@@ -647,14 +647,14 @@ class Anilist extends paperback_extensions_common_1.Tracker {
                         id: 'mangaNotes',
                         header: 'Notes',
                         rows: () => __awaiter(this, void 0, void 0, function* () {
-                            var _3, _4;
+                            var _4, _5;
                             return [
                                 createInputField({
                                     id: 'notes',
                                     // @ts-ignore
                                     label: undefined,
                                     placeholder: 'Notes',
-                                    value: (_4 = (_3 = anilistManga.mediaListEntry) === null || _3 === void 0 ? void 0 : _3.notes) !== null && _4 !== void 0 ? _4 : '',
+                                    value: (_5 = (_4 = anilistManga.mediaListEntry) === null || _4 === void 0 ? void 0 : _4.notes) !== null && _5 !== void 0 ? _5 : '',
                                     maskInput: false
                                 })
                             ];
@@ -663,9 +663,9 @@ class Anilist extends paperback_extensions_common_1.Tracker {
                 ];
             }),
             onSubmit: (values) => __awaiter(this, void 0, void 0, function* () {
-                var _5, _6;
+                var _6, _7;
                 let mutation;
-                const status = (_6 = (_5 = values['status']) === null || _5 === void 0 ? void 0 : _5[0]) !== null && _6 !== void 0 ? _6 : '';
+                const status = (_7 = (_6 = values['status']) === null || _6 === void 0 ? void 0 : _6[0]) !== null && _7 !== void 0 ? _7 : '';
                 const id = values['id'] != null ? Number(values['id']) : undefined;
                 const progressVolumes = values['progressVolumes'] ? Number(values['progressVolumes']) : undefined;
                 if (status == 'NONE' && id != null) {
@@ -758,13 +758,12 @@ class Anilist extends paperback_extensions_common_1.Tracker {
                                 id: 'anilistLogin',
                                 authorizeEndpoint: 'https://anilist.co/api/v2/oauth/authorize',
                                 clientId: '5459',
-                                //                         redirectUri: 'paperback://oauth-callback',
                                 label: 'Login with Anilist',
                                 responseType: {
                                     type: 'token'
                                 },
                                 value: undefined,
-                                successHandler: (token, _refreshToken) => __awaiter(this, void 0, void 0, function* () {
+                                successHandler: (token) => __awaiter(this, void 0, void 0, function* () {
                                     yield this.accessToken.set(token);
                                 })
                             })

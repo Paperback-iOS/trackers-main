@@ -365,7 +365,7 @@ exports.KomgaInfo = {
     author: 'Lemon',
     contentRating: paperback_extensions_common_1.ContentRating.EVERYONE,
     icon: 'icon.png',
-    version: '1.0.0',
+    version: '1.0.1',
     description: 'Komga Tracker',
     authorWebsite: 'https://github.com/FramboisePi',
     websiteBaseURL: 'https://komga.org'
@@ -399,18 +399,18 @@ class Komga extends paperback_extensions_common_1.Tracker {
     }
     getAuthorizationString() {
         return __awaiter(this, void 0, void 0, function* () {
-            const authorizationString = yield this.stateManager.retrieve("authorization");
+            const authorizationString = yield this.stateManager.retrieve('authorization');
             if (authorizationString === null) {
-                throw new Error("Unset credentials in source settings");
+                throw new Error('Unset credentials in source settings');
             }
             return authorizationString;
         });
     }
     getKomgaAPI() {
         return __awaiter(this, void 0, void 0, function* () {
-            const komgaAPI = yield this.stateManager.retrieve("komgaAPI");
+            const komgaAPI = yield this.stateManager.retrieve('komgaAPI');
             if (komgaAPI === null) {
-                throw new Error("Unset server URL in source settings");
+                throw new Error('Unset server URL in source settings');
             }
             return komgaAPI;
         });
@@ -446,10 +446,10 @@ class Komga extends paperback_extensions_common_1.Tracker {
                     })
                 ];
             }),
-            onSubmit: (values) => {
+            onSubmit: () => {
                 return Promise.resolve();
             },
-            validate: (_values) => __awaiter(this, void 0, void 0, function* () { return true; })
+            validate: () => __awaiter(this, void 0, void 0, function* () { return true; })
         });
     }
     getTrackedManga(mangaId) {
@@ -457,20 +457,20 @@ class Komga extends paperback_extensions_common_1.Tracker {
             const komgaAPI = yield this.getKomgaAPI();
             const request = createRequestObject({
                 url: `${komgaAPI}/series/${mangaId}/`,
-                method: "GET",
+                method: 'GET',
             });
             const response = yield this.requestManager.schedule(request, 1);
-            const result = (typeof response.data) === "string" ? JSON.parse(response.data) : response.data;
+            const result = (typeof response.data) === 'string' ? JSON.parse(response.data) : response.data;
             const metadata = result.metadata;
             const booksMetadata = result.booksMetadata;
-            let authors = [];
-            let artists = [];
+            const authors = [];
+            const artists = [];
             // Additional roles: colorist, inker, letterer, cover, editor
-            for (let entry of booksMetadata.authors) {
-                if (entry.role === "writer") {
+            for (const entry of booksMetadata.authors) {
+                if (entry.role === 'writer') {
                     authors.push(entry.name);
                 }
-                if (entry.role === "penciller") {
+                if (entry.role === 'penciller') {
                     artists.push(entry.name);
                 }
             }
@@ -479,8 +479,8 @@ class Komga extends paperback_extensions_common_1.Tracker {
                 mangaInfo: createMangaInfo({
                     image: `${komgaAPI}/series/${mangaId}/thumbnail`,
                     titles: [metadata.title],
-                    artist: artists.join(", "),
-                    author: authors.join(", "),
+                    artist: artists.join(', '),
+                    author: authors.join(', '),
                     desc: (metadata.summary ? metadata.summary : booksMetadata.summary),
                     hentai: false,
                     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -488,7 +488,7 @@ class Komga extends paperback_extensions_common_1.Tracker {
                     status: 'Reading',
                     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                     // @ts-ignore
-                    banner: ""
+                    banner: ''
                 })
             });
         });
@@ -501,14 +501,14 @@ class Komga extends paperback_extensions_common_1.Tracker {
                 rows: () => __awaiter(this, void 0, void 0, function* () {
                     return [
                         createMultilineLabel({
-                            label: "This tracker sync read chapters from the app to the Komga server.\nNote: only titles from the Komga source can be synced.",
-                            value: "",
-                            id: "description"
+                            label: 'This tracker sync read chapters from the app to the Komga server.\nNote: only titles from the Komga source can be synced.',
+                            value: '',
+                            id: 'description'
                         }),
                         createLabel({
-                            label: "Use the source settings menu to set your server credentials.",
-                            value: "",
-                            id: "settings"
+                            label: 'Use the source settings menu to set your server credentials.',
+                            value: '',
+                            id: 'settings'
                         })
                     ];
                 })
@@ -521,7 +521,7 @@ class Komga extends paperback_extensions_common_1.Tracker {
             const chapterReadActions = yield actionQueue.queuedChapterReadActions();
             const komgaAPI = yield this.getKomgaAPI();
             for (const readAction of chapterReadActions) {
-                if (readAction.sourceId != "Komga") {
+                if (readAction.sourceId != 'Komga') {
                     console.log(`Manga ${readAction.mangaId} from source ${readAction.sourceId} can not be used as it does not come from Komga. Discarding`);
                     yield actionQueue.discardChapterReadAction(readAction);
                 }
@@ -530,10 +530,10 @@ class Komga extends paperback_extensions_common_1.Tracker {
                         // The app only support completed read status so the last page read is not important and set to 1
                         const request = createRequestObject({
                             url: `${komgaAPI}/books/${readAction.sourceChapterId}/read-progress`,
-                            method: "PATCH",
+                            method: 'PATCH',
                             data: {
-                                "page": 1,
-                                "completed": true
+                                'page': 1,
+                                'completed': true
                             }
                         });
                         const response = yield this.requestManager.schedule(request, 1);
