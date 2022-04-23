@@ -33,7 +33,7 @@ export const AnilistInfo: SourceInfo = {
     author: 'Faizan Durrani',
     contentRating: ContentRating.EVERYONE,
     icon: 'icon.png',
-    version: '1.0.6',
+    version: '1.0.7',
     description: 'Anilist Tracker',
     authorWebsite: 'faizandurrani.github.io',
     websiteBaseURL: 'https://anilist.co'
@@ -70,7 +70,7 @@ export class Anilist extends Tracker {
 
     accessToken = {
         get: async (): Promise<string | undefined> => {
-            return this.stateManager.keychain.retrieve('access_token')
+            return this.stateManager.keychain.retrieve('access_token') as Promise<string | undefined>
         },
         set: async (token: string | undefined): Promise<void> => {
             // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -85,7 +85,7 @@ export class Anilist extends Tracker {
 
     userInfo = {
         get: async (): Promise<AnilistUser.Viewer | undefined> => {
-            return this.stateManager.retrieve('userInfo')
+            return this.stateManager.retrieve('userInfo') as Promise<AnilistUser.Viewer | undefined>
         },
         isLoggedIn: async (): Promise<boolean> => {
             return (await this.userInfo.get()) != null
@@ -298,7 +298,7 @@ export class Anilist extends Tracker {
                             createStepper({
                                 id: 'score',
                                 label: 'Score',
-                                value: anilistManga.mediaListEntry?.score,
+                                value: anilistManga.mediaListEntry?.score ?? 0,
                                 min: 0,
                                 max: this.scoreFormatLimit(user.mediaListOptions?.scoreFormat ?? 'POINT_10'),
                                 step: user.mediaListOptions?.scoreFormat?.includes('DECIMAL') === true ? 0.1 : 1
@@ -326,7 +326,7 @@ export class Anilist extends Tracker {
                 let mutation: GraphQLQuery
                 const status = values['status']?.[0] ?? ''
                 const id = values['id'] != null ? Number(values['id']) : undefined
-		        const progressVolumes = values['progressVolumes'] ? Number(values['progressVolumes']) : undefined
+                const progressVolumes = values['progressVolumes'] ? Number(values['progressVolumes']) : undefined
 
 
                 if(status == 'NONE' && id != null) {
@@ -418,13 +418,12 @@ export class Anilist extends Tracker {
                         id: 'anilistLogin',
                         authorizeEndpoint: 'https://anilist.co/api/v2/oauth/authorize',
                         clientId: '5459',
-//                         redirectUri: 'paperback://oauth-callback',
                         label: 'Login with Anilist',
                         responseType: {
                             type: 'token'
                         },
                         value: undefined,
-                        successHandler: async (token, _refreshToken) => {
+                        successHandler: async (token,) => {
                             await this.accessToken.set(token)
                         }
                     })

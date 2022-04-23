@@ -20,7 +20,7 @@ export const KomgaInfo: SourceInfo = {
     author: 'Lemon',
     contentRating: ContentRating.EVERYONE,
     icon: 'icon.png',
-    version: '1.0.0',
+    version: '1.0.1',
     description: 'Komga Tracker',
     authorWebsite: 'https://github.com/FramboisePi',
     websiteBaseURL: 'https://komga.org'
@@ -32,19 +32,19 @@ export class Komga extends Tracker {
     stateManager = createSourceStateManager({})
 
     async getAuthorizationString(): Promise<string>{
-        const authorizationString = await this.stateManager.retrieve("authorization") as string
+        const authorizationString = await this.stateManager.retrieve('authorization') as string
     
         if (authorizationString === null) {
-            throw new Error("Unset credentials in source settings")
+            throw new Error('Unset credentials in source settings')
         }
         return authorizationString
     }
     
-     async getKomgaAPI(): Promise<string>{
-        const komgaAPI = await this.stateManager.retrieve("komgaAPI") as string
+    async getKomgaAPI(): Promise<string>{
+        const komgaAPI = await this.stateManager.retrieve('komgaAPI') as string
     
         if (komgaAPI === null) {
-            throw new Error("Unset server URL in source settings")
+            throw new Error('Unset server URL in source settings')
         }
         return komgaAPI
     }
@@ -103,10 +103,10 @@ export class Komga extends Tracker {
                     })
                 ]
             },
-            onSubmit: (values: any) => {
+            onSubmit: () => {
                 return Promise.resolve()
             },
-            validate: async (_values) => true 
+            validate: async () => true 
         })
     } 
     
@@ -116,24 +116,24 @@ export class Komga extends Tracker {
 
         const request = createRequestObject({
             url: `${komgaAPI}/series/${mangaId}/`,
-            method: "GET",
+            method: 'GET',
         })
 
         const response = await this.requestManager.schedule(request, 1)
-        const result = (typeof response.data) === "string" ? JSON.parse(response.data) : response.data
+        const result = (typeof response.data) === 'string' ? JSON.parse(response.data) : response.data
 
         const metadata = result.metadata
         const booksMetadata = result.booksMetadata
 
-        let authors: string[] = []
-        let artists: string[] = []
+        const authors: string[] = []
+        const artists: string[] = []
 
         // Additional roles: colorist, inker, letterer, cover, editor
-        for (let entry of booksMetadata.authors) {
-            if (entry.role === "writer") {
+        for (const entry of booksMetadata.authors) {
+            if (entry.role === 'writer') {
                 authors.push(entry.name)
             }
-            if (entry.role === "penciller") {
+            if (entry.role === 'penciller') {
                 artists.push(entry.name)
             }
         }
@@ -143,8 +143,8 @@ export class Komga extends Tracker {
             mangaInfo: createMangaInfo({
                 image: `${komgaAPI}/series/${mangaId}/thumbnail`,
                 titles: [metadata.title],
-                artist: artists.join(", "),
-                author: authors.join(", "),
+                artist: artists.join(', '),
+                author: authors.join(', '),
                 desc: (metadata.summary ? metadata.summary : booksMetadata.summary),
                 hentai: false,
                 
@@ -153,7 +153,7 @@ export class Komga extends Tracker {
                 status: 'Reading',
                 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                 // @ts-ignore
-                banner: ""
+                banner: ''
             })
         })
     }
@@ -165,14 +165,14 @@ export class Komga extends Tracker {
             rows: async () => {
                 return [
                     createMultilineLabel({
-                        label: "This tracker sync read chapters from the app to the Komga server.\nNote: only titles from the Komga source can be synced.",
-                        value: "",
-                        id: "description"
+                        label: 'This tracker sync read chapters from the app to the Komga server.\nNote: only titles from the Komga source can be synced.',
+                        value: '',
+                        id: 'description'
                     }),
                     createLabel({
-                        label: "Use the source settings menu to set your server credentials.",
-                        value: "",
-                        id: "settings"
+                        label: 'Use the source settings menu to set your server credentials.',
+                        value: '',
+                        id: 'settings'
                     })
                     
                 ]
@@ -189,7 +189,7 @@ export class Komga extends Tracker {
 
         for (const readAction of chapterReadActions) {
 
-            if (readAction.sourceId != "Komga") {
+            if (readAction.sourceId != 'Komga') {
                 console.log(`Manga ${readAction.mangaId} from source ${readAction.sourceId} can not be used as it does not come from Komga. Discarding`)
                 await actionQueue.discardChapterReadAction(readAction)
             } else {
@@ -197,10 +197,10 @@ export class Komga extends Tracker {
                     // The app only support completed read status so the last page read is not important and set to 1
                     const request = createRequestObject({
                         url: `${komgaAPI}/books/${readAction.sourceChapterId}/read-progress`,
-                        method: "PATCH",
+                        method: 'PATCH',
                         data: {
-                            "page": 1,
-                            "completed": true
+                            'page': 1,
+                            'completed': true
                         }
                     })
                   
