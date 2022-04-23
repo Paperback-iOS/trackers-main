@@ -326,6 +326,8 @@ export class Anilist extends Tracker {
                 let mutation: GraphQLQuery
                 const status = values['status']?.[0] ?? ''
                 const id = values['id'] != null ? Number(values['id']) : undefined
+		        const progressVolumes = values['progressVolumes'] ? Number(values['progressVolumes']) : undefined
+
 
                 if(status == 'NONE' && id != null) {
                     mutation = deleteMangaProgressMutation(id)
@@ -336,7 +338,7 @@ export class Anilist extends Tracker {
                         status: status,
                         notes: values['notes'],
                         progress: Number(values['progress']),
-                        progressVolumes: Number(values['progressVolumes']),
+                        progressVolumes: progressVolumes,
                         score: Number(values['score'])
                     })
                 }
@@ -465,4 +467,3 @@ export class Anilist extends Tracker {
         return extracted != null ? Number(extracted) : undefined
     }
 }
-
