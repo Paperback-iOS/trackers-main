@@ -1,33 +1,3 @@
-Skip to content
-Search or jump to…
-Pull requests
-Issues
-Marketplace
-Explore
- 
-@Celarye 
-Paperback-iOS
-/
-trackers-main
-Public
-Code
-Issues
-Pull requests
-1
-Actions
-Projects
-Wiki
-Security
-Insights
-trackers-main/src/Anilist/Anilist.ts /
-@swaggy-p-jp
-swaggy-p-jp bump version
-Latest commit 5877098 on 21 Sep 2021
- History
- 2 contributors
-@FaizanDurrani@swaggy-p-jp
-468 lines (422 sloc)  18.5 KB
-   
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import {
     ContentRating,
@@ -497,16 +467,3 @@ export class Anilist extends Tracker {
         return extracted != null ? Number(extracted) : undefined
     }
 }
-© 2022 GitHub, Inc.
-Terms
-Privacy
-Security
-Status
-Docs
-Contact GitHub
-Pricing
-API
-Training
-Blog
-About
-Loading complete
