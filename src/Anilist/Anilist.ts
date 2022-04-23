@@ -326,7 +326,7 @@ export class Anilist extends Tracker {
                 let mutation: GraphQLQuery
                 const status = values['status']?.[0] ?? ''
                 const id = values['id'] != null ? Number(values['id']) : undefined
-		        const progressVolumes = values['progressVolumes'] != null ? Number(values['progressVolumes']) : undefined
+		        const progressVolumes = values['progressVolumes'] ? Number(values['progressVolumes']) : undefined
 
 
                 if(status == 'NONE' && id != null) {
