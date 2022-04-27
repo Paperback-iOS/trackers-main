@@ -33,7 +33,7 @@ export const AnilistInfo: SourceInfo = {
     author: 'Faizan Durrani',
     contentRating: ContentRating.EVERYONE,
     icon: 'icon.png',
-    version: '1.0.7',
+    version: '1.0.8',
     description: 'Anilist Tracker',
     authorWebsite: 'faizandurrani.github.io',
     websiteBaseURL: 'https://anilist.co'
@@ -326,7 +326,6 @@ export class Anilist extends Tracker {
                 let mutation: GraphQLQuery
                 const status = values['status']?.[0] ?? ''
                 const id = values['id'] != null ? Number(values['id']) : undefined
-                const progressVolumes = values['progressVolumes'] ? Number(values['progressVolumes']) : undefined
 
 
                 if(status == 'NONE' && id != null) {
@@ -337,8 +336,8 @@ export class Anilist extends Tracker {
                         mediaId: Number(values['mediaId']),
                         status: status,
                         notes: values['notes'],
-                        progress: Number(values['progress']),
-                        progressVolumes: progressVolumes,
+                        progress: values['progress'],
+                        progressVolumes: values['progressVolumes'],
                         score: Number(values['score'])
                     })
                 }
@@ -444,7 +443,7 @@ export class Anilist extends Tracker {
                     data: saveMangaProgressMutation({
                         mediaId: readAction.mangaId,
                         progress: readAction.chapterNumber,
-                        progressVolumes: readAction.volumeNumber
+                        progressVolumes: readAction.volumeNumber ? readAction.volumeNumber : undefined
                     })
                 }), 0)
 
