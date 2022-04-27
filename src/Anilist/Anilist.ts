@@ -415,6 +415,7 @@ export class Anilist extends Tracker {
                         }
                     })
                 ]; else return [
+                    trackerSettings(this.stateManager),
                     createOAuthButton({
                         id: 'anilistLogin',
                         authorizeEndpoint: 'https://anilist.co/api/v2/oauth/authorize',
