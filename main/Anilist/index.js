@@ -374,11 +374,90 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.trackerSettings = exports.getdefaultStatus = void 0;
+const getdefaultStatus = (stateManager) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    return (_a = (yield stateManager.retrieve('defaultStatus'))) !== null && _a !== void 0 ? _a : undefined;
+});
+exports.getdefaultStatus = getdefaultStatus;
+const trackerSettings = (stateManager) => {
+    return createNavigationButton({
+        id: 'tracker_settings',
+        value: '',
+        label: 'Tracker Settings',
+        form: createForm({
+            onSubmit: (values) => {
+                return Promise.all([
+                    stateManager.store('defaultStatus', values.defaultStatus)
+                ]).then();
+            },
+            validate: () => {
+                return Promise.resolve(true);
+            },
+            sections: () => {
+                return Promise.resolve([
+                    createSection({
+                        id: 'settings',
+                        rows: () => {
+                            return Promise.all([
+                                (0, exports.getdefaultStatus)(stateManager)
+                            ]).then((values) => __awaiter(void 0, void 0, void 0, function* () {
+                                var _a;
+                                return [
+                                    createSelect({
+                                        id: 'defaultStatus',
+                                        label: 'Default Status',
+                                        value: (_a = values[0]) !== null && _a !== void 0 ? _a : 'NONE',
+                                        displayLabel: (value) => {
+                                            switch (value) {
+                                                case 'CURRENT': return 'Reading';
+                                                case 'PLANNING': return 'Planned';
+                                                case 'COMPLETED': return 'Completed';
+                                                case 'DROPPED': return 'Dropped';
+                                                case 'PAUSED': return 'On-Hold';
+                                                case 'REPEATING': return 'Re-Reading';
+                                                default: return 'None';
+                                            }
+                                        },
+                                        options: [
+                                            'NONE',
+                                            'CURRENT',
+                                            'PLANNING',
+                                            'COMPLETED',
+                                            'DROPPED',
+                                            'PAUSED',
+                                            'REPEATING'
+                                        ]
+                                    })
+                                ];
+                            }));
+                        }
+                    })
+                ]);
+            }
+        })
+    });
+};
+exports.trackerSettings = trackerSettings;
+
+},{}],49:[function(require,module,exports){
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.Anilist = exports.AnilistInfo = void 0;
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 const paperback_extensions_common_1 = require("paperback-extensions-common");
 const graphql_queries_1 = require("./models/graphql-queries");
 const anilist_result_1 = require("./models/anilist-result");
+const AlSettings_1 = require("./AlSettings");
 const ANILIST_GRAPHQL_ENDPOINT = 'https://graphql.anilist.co/';
 const FALLBACK_IMAGE = 'https://via.placeholder.com/100x150';
 exports.AnilistInfo = {
@@ -386,7 +465,7 @@ exports.AnilistInfo = {
     author: 'Faizan Durrani',
     contentRating: paperback_extensions_common_1.ContentRating.EVERYONE,
     icon: 'icon.png',
-    version: '1.0.8',
+    version: '1.0.9',
     description: 'Anilist Tracker',
     authorWebsite: 'faizandurrani.github.io',
     websiteBaseURL: 'https://anilist.co'
@@ -590,7 +669,7 @@ class Anilist extends paperback_extensions_common_1.Tracker {
                             return [
                                 createSelect({
                                     id: 'status',
-                                    value: [(_t = (_s = anilistManga.mediaListEntry) === null || _s === void 0 ? void 0 : _s.status) !== null && _t !== void 0 ? _t : 'NONE'],
+                                    value: [(_t = (_s = anilistManga.mediaListEntry) === null || _s === void 0 ? void 0 : _s.status) !== null && _t !== void 0 ? _t : (yield (0, AlSettings_1.getdefaultStatus)(this.stateManager)).toString()],
                                     allowsMultiselect: false,
                                     label: 'Status',
                                     displayLabel: (value) => {
@@ -755,6 +834,7 @@ class Anilist extends paperback_extensions_common_1.Tracker {
                     const isLoggedIn = yield this.userInfo.isLoggedIn();
                     if (isLoggedIn)
                         return [
+                            (0, AlSettings_1.trackerSettings)(this.stateManager),
                             createLabel({
                                 id: 'userInfo',
                                 label: 'Logged-in as',
@@ -771,6 +851,7 @@ class Anilist extends paperback_extensions_common_1.Tracker {
                         ];
                     else
                         return [
+                            (0, AlSettings_1.trackerSettings)(this.stateManager),
                             createOAuthButton({
                                 id: 'anilistLogin',
                                 authorizeEndpoint: 'https://anilist.co/api/v2/oauth/authorize',
@@ -826,7 +907,7 @@ class Anilist extends paperback_extensions_common_1.Tracker {
 }
 exports.Anilist = Anilist;
 
-},{"./models/anilist-result":49,"./models/graphql-queries":50,"paperback-extensions-common":4}],49:[function(require,module,exports){
+},{"./AlSettings":48,"./models/anilist-result":50,"./models/graphql-queries":51,"paperback-extensions-common":4}],50:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AnilistResult = void 0;
@@ -843,7 +924,7 @@ function AnilistResult(json) {
 }
 exports.AnilistResult = AnilistResult;
 
-},{}],50:[function(require,module,exports){
+},{}],51:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteMangaProgressMutation = exports.saveMangaProgressMutation = exports.getMangaProgressQuery = exports.getMangaQuery = exports.searchMangaQuery = exports.userProfileQuery = void 0;
@@ -986,5 +1067,5 @@ const deleteMangaProgressMutation = (id) => ({
 });
 exports.deleteMangaProgressMutation = deleteMangaProgressMutation;
 
-},{}]},{},[48])(48)
+},{}]},{},[49])(49)
 });
