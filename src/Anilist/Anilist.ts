@@ -24,6 +24,7 @@ import * as AnilistUser from './models/anilist-user'
 import * as AnilistPage from './models/anilist-page'
 import * as AnilistManga from './models/anilist-manga'
 import { AnilistResult } from './models/anilist-result'
+import { getdefaultStatus, trackerSettings } from './AlSettings'
 
 const ANILIST_GRAPHQL_ENDPOINT = 'https://graphql.anilist.co/'
 const FALLBACK_IMAGE = 'https://via.placeholder.com/100x150'
@@ -33,7 +34,7 @@ export const AnilistInfo: SourceInfo = {
     author: 'Faizan Durrani',
     contentRating: ContentRating.EVERYONE,
     icon: 'icon.png',
-    version: '1.0.8',
+    version: '1.0.9',
     description: 'Anilist Tracker',
     authorWebsite: 'faizandurrani.github.io',
     websiteBaseURL: 'https://anilist.co'
@@ -238,7 +239,7 @@ export class Anilist extends Tracker {
                         rows: async () => [
                             createSelect({
                                 id: 'status',
-                                value: [anilistManga.mediaListEntry?.status ?? 'NONE'],
+                                value: [anilistManga.mediaListEntry?.status ?? (await getdefaultStatus(this.stateManager)).toString()],
                                 allowsMultiselect: false,
                                 label: 'Status',
                                 displayLabel: (value) => {
@@ -399,6 +400,7 @@ export class Anilist extends Tracker {
                 const isLoggedIn = await this.userInfo.isLoggedIn()
 
                 if (isLoggedIn) return [
+                    trackerSettings(this.stateManager),
                     createLabel({
                         id: 'userInfo',
                         label: 'Logged-in as',
@@ -413,6 +415,7 @@ export class Anilist extends Tracker {
                         }
                     })
                 ]; else return [
+                    trackerSettings(this.stateManager),
                     createOAuthButton({
                         id: 'anilistLogin',
                         authorizeEndpoint: 'https://anilist.co/api/v2/oauth/authorize',
