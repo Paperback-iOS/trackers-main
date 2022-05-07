@@ -126,7 +126,7 @@ export const getMangaProgressQuery = (id: number): GraphQLQuery => ({
 
 export interface SaveMangaProgressVariables {
     id?: number
-    mediaId?: number
+    mediaId?: number | string
     status?: string
     score?: number
     progress?: number
