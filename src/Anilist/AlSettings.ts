@@ -5,7 +5,7 @@ import {
 } from 'paperback-extensions-common'
 
 export const getdefaultStatus = async (stateManager: SourceStateManager): Promise<string[]> => {
-    return (await stateManager.retrieve('defaultStatus') as string[]) ?? undefined
+    return (await stateManager.retrieve('defaultStatus') as string[]) ?? ['NONE']
 }
 
 export const trackerSettings = (stateManager: SourceStateManager): NavigationButton => {
@@ -27,14 +27,12 @@ export const trackerSettings = (stateManager: SourceStateManager): NavigationBut
                     createSection({
                         id: 'settings',
                         rows: () => {
-                            return Promise.all([
-                                getdefaultStatus(stateManager)
-                            ]).then(async values => {
+                            return getdefaultStatus(stateManager).then((values) => {
                                 return [
                                     createSelect({
                                         id: 'defaultStatus',
                                         label: 'Default Status',
-                                        value: values[0] ?? 'NONE',
+                                        value: values,
                                         displayLabel: (value) => {
                                             switch (value) {
                                                 case 'CURRENT': return 'Reading'
@@ -55,7 +53,7 @@ export const trackerSettings = (stateManager: SourceStateManager): NavigationBut
                                             'PAUSED',
                                             'REPEATING'
                                         ]
-                                    
+
                                     })
                                 ]
                             })

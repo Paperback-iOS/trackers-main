@@ -24,7 +24,10 @@ import * as AnilistUser from './models/anilist-user'
 import * as AnilistPage from './models/anilist-page'
 import * as AnilistManga from './models/anilist-manga'
 import { AnilistResult } from './models/anilist-result'
-import { getdefaultStatus, trackerSettings } from './AlSettings'
+import {
+    getdefaultStatus,
+    trackerSettings
+} from './AlSettings'
 
 const ANILIST_GRAPHQL_ENDPOINT = 'https://graphql.anilist.co/'
 const FALLBACK_IMAGE = 'https://via.placeholder.com/100x150'
@@ -239,7 +242,9 @@ export class Anilist extends Tracker {
                         rows: async () => [
                             createSelect({
                                 id: 'status',
-                                value: [anilistManga.mediaListEntry?.status ?? (await getdefaultStatus(this.stateManager)).toString()],
+                                value: anilistManga.mediaListEntry?.status
+                                    ? [anilistManga.mediaListEntry.status]
+                                    : (await getdefaultStatus(this.stateManager)),
                                 allowsMultiselect: false,
                                 label: 'Status',
                                 displayLabel: (value) => {
