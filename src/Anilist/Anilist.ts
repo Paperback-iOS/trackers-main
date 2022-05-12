@@ -9,7 +9,8 @@ import {
     TrackedManga,
     Tracker,
     Request,
-    Response
+    Response,
+    TrackerActionQueue
 } from 'paperback-extensions-common'
 import {
     deleteMangaProgressMutation,
@@ -24,7 +25,10 @@ import * as AnilistUser from './models/anilist-user'
 import * as AnilistPage from './models/anilist-page'
 import * as AnilistManga from './models/anilist-manga'
 import { AnilistResult } from './models/anilist-result'
-import { getdefaultStatus, trackerSettings } from './AlSettings'
+import {
+    getdefaultStatus,
+    trackerSettings
+} from './AlSettings'
 
 const ANILIST_GRAPHQL_ENDPOINT = 'https://graphql.anilist.co/'
 const FALLBACK_IMAGE = 'https://via.placeholder.com/100x150'
@@ -34,7 +38,7 @@ export const AnilistInfo: SourceInfo = {
     author: 'Faizan Durrani',
     contentRating: ContentRating.EVERYONE,
     icon: 'icon.png',
-    version: '1.0.9',
+    version: '1.0.10',
     description: 'Anilist Tracker',
     authorWebsite: 'faizandurrani.github.io',
     websiteBaseURL: 'https://anilist.co'
@@ -58,7 +62,7 @@ export class Anilist extends Tracker {
                         'authorization': `Bearer ${accessToken}`
                     } : {})
                 }
-                
+
                 return request
             },
             interceptResponse: async (response: Response): Promise<Response> => {
@@ -94,7 +98,7 @@ export class Anilist extends Tracker {
         refresh: async (): Promise<void> => {
             const accessToken = await this.accessToken.get()
 
-            if(accessToken == null) { 
+            if(accessToken == null) {
                 return this.stateManager.store('userInfo', undefined)
             }
 
@@ -109,7 +113,7 @@ export class Anilist extends Tracker {
             await this.stateManager.store('userInfo', userInfo)
         }
     }
-    
+
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     async getSearchResults(query: SearchRequest, metadata: unknown): Promise<PagedResults> {
@@ -128,7 +132,7 @@ export class Anilist extends Tracker {
         const anilistPage = AnilistResult<AnilistPage.Result>(response.data).data?.Page
 
         console.log(JSON.stringify(anilistPage, null, 2))
-        
+
         return createPagedResults({
             results: anilistPage?.media.map(manga => createMangaTile({
                 id: manga.id.toString(),
@@ -203,7 +207,7 @@ export class Anilist extends Tracker {
                                 label: 'Manga ID',
                                 value: anilistManga.id?.toString(),
                             }),
-                            
+
                             createLabel({
                                 id: 'mangaTitle',
                                 label: 'Title',
@@ -239,7 +243,9 @@ export class Anilist extends Tracker {
                         rows: async () => [
                             createSelect({
                                 id: 'status',
-                                value: [anilistManga.mediaListEntry?.status ?? (await getdefaultStatus(this.stateManager)).toString()],
+                                value: anilistManga.mediaListEntry?.status
+                                    ? [anilistManga.mediaListEntry.status]
+                                    : (await getdefaultStatus(this.stateManager)),
                                 allowsMultiselect: false,
                                 label: 'Status',
                                 displayLabel: (value) => {
@@ -351,10 +357,10 @@ export class Anilist extends Tracker {
                     data: mutation
                 }), 1)
             },
-            validate: async (_values) => true 
+            validate: async (_values) => true
         })
-    } 
-    
+    }
+
 
     async getTrackedManga(mangaId: string): Promise<TrackedManga> {
         const response = await this.requestManager.schedule(createRequestObject({
@@ -380,7 +386,7 @@ export class Anilist extends Tracker {
                 author: anilistManga.staff?.edges?.find(x => x?.role?.toLowerCase() == 'story')?.node?.name?.full ?? 'Unknown',
                 desc: anilistManga?.description || '',
                 hentai: anilistManga.isAdult,
-                
+
                 rating: anilistManga.averageScore,
                 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                 // @ts-ignore
@@ -434,25 +440,27 @@ export class Anilist extends Tracker {
         })
     }
 
-    // @ts-ignore
-    async processActionQueue(actionQueue: TrackedMangaChapterReadAction): Promise<void> {
+    async processActionQueue(actionQueue: TrackerActionQueue): Promise<void> {
         const chapterReadActions = await actionQueue.queuedChapterReadActions()
 
         for(const readAction of chapterReadActions) {
             try {
+                const params = {
+                    mediaId: readAction.mangaId,
+                    progress: Math.floor(readAction.chapterNumber),
+                    progressVolumes: readAction.volumeNumber ? Math.floor(readAction.volumeNumber) : undefined
+                }
+
                 const response = await this.requestManager.schedule(createRequestObject({
                     url: ANILIST_GRAPHQL_ENDPOINT,
                     method: 'POST',
-                    data: saveMangaProgressMutation({
-                        mediaId: readAction.mangaId,
-                        progress: readAction.chapterNumber,
-                        progressVolumes: readAction.volumeNumber ? readAction.volumeNumber : undefined
-                    })
+                    data: saveMangaProgressMutation(params)
                 }), 0)
 
                 if(response.status < 400) {
                     await actionQueue.discardChapterReadAction(readAction)
                 } else {
+                    console.log(`action failed: ${response.data}`)
                     await actionQueue.retryChapterReadAction(readAction)
                 }
             } catch(error) {
