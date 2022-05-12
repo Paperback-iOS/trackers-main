@@ -377,7 +377,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.trackerSettings = exports.getdefaultStatus = void 0;
 const getdefaultStatus = (stateManager) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
-    return (_a = (yield stateManager.retrieve('defaultStatus'))) !== null && _a !== void 0 ? _a : undefined;
+    return (_a = (yield stateManager.retrieve('defaultStatus'))) !== null && _a !== void 0 ? _a : ['NONE'];
 });
 exports.getdefaultStatus = getdefaultStatus;
 const trackerSettings = (stateManager) => {
@@ -399,15 +399,12 @@ const trackerSettings = (stateManager) => {
                     createSection({
                         id: 'settings',
                         rows: () => {
-                            return Promise.all([
-                                (0, exports.getdefaultStatus)(stateManager)
-                            ]).then((values) => __awaiter(void 0, void 0, void 0, function* () {
-                                var _a;
+                            return (0, exports.getdefaultStatus)(stateManager).then((values) => {
                                 return [
                                     createSelect({
                                         id: 'defaultStatus',
                                         label: 'Default Status',
-                                        value: (_a = values[0]) !== null && _a !== void 0 ? _a : 'NONE',
+                                        value: values,
                                         displayLabel: (value) => {
                                             switch (value) {
                                                 case 'CURRENT': return 'Reading';
@@ -430,7 +427,7 @@ const trackerSettings = (stateManager) => {
                                         ]
                                     })
                                 ];
-                            }));
+                            });
                         }
                     })
                 ]);
@@ -465,7 +462,7 @@ exports.AnilistInfo = {
     author: 'Faizan Durrani',
     contentRating: paperback_extensions_common_1.ContentRating.EVERYONE,
     icon: 'icon.png',
-    version: '1.0.9',
+    version: '1.0.10',
     description: 'Anilist Tracker',
     authorWebsite: 'faizandurrani.github.io',
     websiteBaseURL: 'https://anilist.co'
@@ -665,11 +662,13 @@ class Anilist extends paperback_extensions_common_1.Tracker {
                         header: 'Manga Status',
                         footer: 'Warning: Setting this to NONE will delete the listing from Anilist',
                         rows: () => __awaiter(this, void 0, void 0, function* () {
-                            var _s, _t;
+                            var _s;
                             return [
                                 createSelect({
                                     id: 'status',
-                                    value: [(_t = (_s = anilistManga.mediaListEntry) === null || _s === void 0 ? void 0 : _s.status) !== null && _t !== void 0 ? _t : (yield (0, AlSettings_1.getdefaultStatus)(this.stateManager)).toString()],
+                                    value: ((_s = anilistManga.mediaListEntry) === null || _s === void 0 ? void 0 : _s.status)
+                                        ? [anilistManga.mediaListEntry.status]
+                                        : (yield (0, AlSettings_1.getdefaultStatus)(this.stateManager)),
                                     allowsMultiselect: false,
                                     label: 'Status',
                                     displayLabel: (value) => {
@@ -700,13 +699,13 @@ class Anilist extends paperback_extensions_common_1.Tracker {
                         id: 'manage',
                         header: 'Progress',
                         rows: () => __awaiter(this, void 0, void 0, function* () {
-                            var _u, _v, _w, _x;
+                            var _t, _u, _v, _w;
                             return [
                                 //@ts-ignore
                                 createStepper({
                                     id: 'progress',
                                     label: 'Chapter',
-                                    value: (_v = (_u = anilistManga.mediaListEntry) === null || _u === void 0 ? void 0 : _u.progress) !== null && _v !== void 0 ? _v : 0,
+                                    value: (_u = (_t = anilistManga.mediaListEntry) === null || _t === void 0 ? void 0 : _t.progress) !== null && _u !== void 0 ? _u : 0,
                                     min: 0,
                                     step: 1
                                 }),
@@ -714,7 +713,7 @@ class Anilist extends paperback_extensions_common_1.Tracker {
                                 createStepper({
                                     id: 'progressVolumes',
                                     label: 'Volume',
-                                    value: (_x = (_w = anilistManga.mediaListEntry) === null || _w === void 0 ? void 0 : _w.progressVolumes) !== null && _x !== void 0 ? _x : 0,
+                                    value: (_w = (_v = anilistManga.mediaListEntry) === null || _v === void 0 ? void 0 : _v.progressVolumes) !== null && _w !== void 0 ? _w : 0,
                                     min: 0,
                                     step: 1
                                 })
@@ -726,16 +725,16 @@ class Anilist extends paperback_extensions_common_1.Tracker {
                         header: 'Rating',
                         footer: 'This uses your rating preference set on AniList',
                         rows: () => __awaiter(this, void 0, void 0, function* () {
-                            var _y, _z, _0, _1, _2, _3;
+                            var _x, _y, _z, _0, _1, _2;
                             return [
                                 //@ts-ignore
                                 createStepper({
                                     id: 'score',
                                     label: 'Score',
-                                    value: (_z = (_y = anilistManga.mediaListEntry) === null || _y === void 0 ? void 0 : _y.score) !== null && _z !== void 0 ? _z : 0,
+                                    value: (_y = (_x = anilistManga.mediaListEntry) === null || _x === void 0 ? void 0 : _x.score) !== null && _y !== void 0 ? _y : 0,
                                     min: 0,
-                                    max: this.scoreFormatLimit((_1 = (_0 = user.mediaListOptions) === null || _0 === void 0 ? void 0 : _0.scoreFormat) !== null && _1 !== void 0 ? _1 : 'POINT_10'),
-                                    step: ((_3 = (_2 = user.mediaListOptions) === null || _2 === void 0 ? void 0 : _2.scoreFormat) === null || _3 === void 0 ? void 0 : _3.includes('DECIMAL')) === true ? 0.1 : 1
+                                    max: this.scoreFormatLimit((_0 = (_z = user.mediaListOptions) === null || _z === void 0 ? void 0 : _z.scoreFormat) !== null && _0 !== void 0 ? _0 : 'POINT_10'),
+                                    step: ((_2 = (_1 = user.mediaListOptions) === null || _1 === void 0 ? void 0 : _1.scoreFormat) === null || _2 === void 0 ? void 0 : _2.includes('DECIMAL')) === true ? 0.1 : 1
                                 })
                             ];
                         })
@@ -744,14 +743,14 @@ class Anilist extends paperback_extensions_common_1.Tracker {
                         id: 'mangaNotes',
                         header: 'Notes',
                         rows: () => __awaiter(this, void 0, void 0, function* () {
-                            var _4, _5;
+                            var _3, _4;
                             return [
                                 createInputField({
                                     id: 'notes',
                                     // @ts-ignore
                                     label: undefined,
                                     placeholder: 'Notes',
-                                    value: (_5 = (_4 = anilistManga.mediaListEntry) === null || _4 === void 0 ? void 0 : _4.notes) !== null && _5 !== void 0 ? _5 : '',
+                                    value: (_4 = (_3 = anilistManga.mediaListEntry) === null || _3 === void 0 ? void 0 : _3.notes) !== null && _4 !== void 0 ? _4 : '',
                                     maskInput: false
                                 })
                             ];
@@ -760,9 +759,9 @@ class Anilist extends paperback_extensions_common_1.Tracker {
                 ];
             }),
             onSubmit: (values) => __awaiter(this, void 0, void 0, function* () {
-                var _6, _7;
+                var _5, _6;
                 let mutation;
-                const status = (_7 = (_6 = values['status']) === null || _6 === void 0 ? void 0 : _6[0]) !== null && _7 !== void 0 ? _7 : '';
+                const status = (_6 = (_5 = values['status']) === null || _5 === void 0 ? void 0 : _5[0]) !== null && _6 !== void 0 ? _6 : '';
                 const id = values['id'] != null ? Number(values['id']) : undefined;
                 if (status == 'NONE' && id != null) {
                     mutation = (0, graphql_queries_1.deleteMangaProgressMutation)(id);
@@ -870,25 +869,26 @@ class Anilist extends paperback_extensions_common_1.Tracker {
             });
         });
     }
-    // @ts-ignore
     processActionQueue(actionQueue) {
         return __awaiter(this, void 0, void 0, function* () {
             const chapterReadActions = yield actionQueue.queuedChapterReadActions();
             for (const readAction of chapterReadActions) {
                 try {
+                    const params = {
+                        mediaId: readAction.mangaId,
+                        progress: Math.floor(readAction.chapterNumber),
+                        progressVolumes: readAction.volumeNumber ? Math.floor(readAction.volumeNumber) : undefined
+                    };
                     const response = yield this.requestManager.schedule(createRequestObject({
                         url: ANILIST_GRAPHQL_ENDPOINT,
                         method: 'POST',
-                        data: (0, graphql_queries_1.saveMangaProgressMutation)({
-                            mediaId: readAction.mangaId,
-                            progress: readAction.chapterNumber,
-                            progressVolumes: readAction.volumeNumber ? readAction.volumeNumber : undefined
-                        })
+                        data: (0, graphql_queries_1.saveMangaProgressMutation)(params)
                     }), 0);
                     if (response.status < 400) {
                         yield actionQueue.discardChapterReadAction(readAction);
                     }
                     else {
+                        console.log(`action failed: ${response.data}`);
                         yield actionQueue.retryChapterReadAction(readAction);
                     }
                 }
