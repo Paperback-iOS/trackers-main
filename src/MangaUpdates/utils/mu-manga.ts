@@ -8,6 +8,8 @@ const logPrefix = '[mu-manga]'
 const MANGA_TITLE_MAIN = '#main_content .tabletitle'
 const MANGA_INFO_COLUMNS = '#main_content > .p-2:nth-child(2) > .row > .col-6'
 
+const MANGA_CATEGORY_VOTE_ANCHOR = '#cat_opts a'
+
 const IS_HENTAI_GENRE: Record<string, boolean> = {
     Adult: true,
     Hentai: true,
@@ -147,4 +149,27 @@ export function getMangaInfo($: CheerioAPI, html: string, mangaId: string): Mang
     console.log(`${logPrefix} parsed manga (id=${mangaId}): ${JSON.stringify(info)}`)
 
     return info
+}
+
+export function getIdFromPage($: CheerioAPI, html: string, mangaId: string): string {
+    const href = $(MANGA_CATEGORY_VOTE_ANCHOR, html).attr('href')
+    if (!href) {
+        throw new Error('unable to find ID')
+    }
+
+    const matches = /\.showCat\((\d+),/.exec(href)
+    if (!matches) {
+        throw new Error('unable to parse ID')
+    }
+
+    const canonicalId = matches[1]
+    if (!canonicalId) {
+        // should be impossible, but TS thinks the elements of a RegExpExecArray
+        // are `string | undefined`
+        throw new Error('empty ID')
+    }
+
+    console.log(`${logPrefix} found ID (id=${mangaId}): ${canonicalId}`)
+
+    return canonicalId
 }

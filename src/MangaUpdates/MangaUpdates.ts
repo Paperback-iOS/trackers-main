@@ -4,6 +4,7 @@ import {
     Tracker,
     TrackedManga,
     Form,
+    FormRow,
     Section,
     SearchRequest,
     PagedResults,
@@ -35,7 +36,7 @@ export const MangaUpdatesInfo: SourceInfo = {
     author: 'IntermittentlyRupert',
     contentRating: ContentRating.EVERYONE,
     icon: 'icon.png',
-    version: '1.0.0',
+    version: '1.0.1',
     description: 'MangaUpdates Tracker',
     websiteBaseURL: 'https://www.mangaupdates.com',
 }
@@ -51,7 +52,6 @@ export class MangaUpdates extends Tracker {
                 return request
             },
             interceptResponse: async (response) => {
-                // NOTE: depends on Paperback 0.7-r36 (currently still in dev)
                 // TODO: clean this up once new paperback-extensions-common is released
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const cookies: Cookie[] = (this.requestManager as any).cookieStore.getAllCookies()
@@ -84,122 +84,160 @@ export class MangaUpdates extends Tracker {
     getMangaForm(mangaId: string): Form {
         return createForm({
             sections: async () => {
-                const username = (await sessionUtils.getUserCredentials(this.stateManager))?.username
-                if (!username) {
+                try {
+                    const username = (await sessionUtils.getUserCredentials(this.stateManager))?.username
+                    if (!username) {
+                        return [
+                            createSection({
+                                id: 'notLoggedInSection',
+                                rows: () => Promise.resolve([
+                                    createLabel({
+                                        id: 'notLoggedIn',
+                                        label: 'Not Logged In',
+                                        value: undefined
+                                    })
+                                ])
+                            })
+                        ]
+                    }
+
+                    const [avatarUrl, lists, mangaPage] = await Promise.all([
+                        this.getLoggedInUserAvatarUrl(),
+                        this.getLists(),
+                        this.loadMangaPage(mangaId),
+
+                    ])
+
+                    // We might be tracking the manga using an old (pre-May'22)
+                    // ID. Make sure we're using a new ID.
+                    const mangaCanonicalId = mangaUtils.getIdFromPage(this.cheerio, mangaPage, mangaId)
+                    const info = mangaUtils.getMangaInfo(this.cheerio, mangaPage, mangaId)
+                    const status = listUtils.getListInfo(this.cheerio, mangaPage, mangaId)
+
+                    const listId = lists.find(list => list.listName === status.listName)?.listId
+                    if (!listId) {
+                        console.log(`[getMangaForm] unable to find list: ${JSON.stringify({ info, status, lists })}}`)
+                        throw new Error('Unknown manga list!')
+                    }
+
+                    const listNamesById = Object.fromEntries(
+                        lists.map(list => [list.listId, list.listName])
+                    )
+
+                    const oldIdWarning: FormRow[] = []
+                    if (mangaId !== mangaCanonicalId) {
+                        oldIdWarning.push(
+                            createLabel({
+                                id: 'legacyMangaId',
+                                label: 'Legacy Manga ID',
+                                value: mangaId,
+                            }),
+                            createLabel({
+                                id: 'oldIdWarning',
+                                label: 'WARNING',
+                                value: 'This manga is tracked using a legacy MangaUpdates ID. Un-track and re-track this manga to improve tracking performance and reliability!',
+                            })
+                        )
+                    }
+
                     return [
                         createSection({
-                            id: 'notLoggedInSection',
+                            id: 'userInfo',
                             rows: () => Promise.resolve([
-                                createLabel({
-                                    id: 'notLoggedIn',
-                                    label: 'Not Logged In',
+                                createHeader({
+                                    id: 'header',
+                                    imageUrl: avatarUrl,
+                                    title: username,
+                                    subtitle: '',
                                     value: undefined
                                 })
                             ])
-                        })
+                        }),
+                        createSection({
+                            id: 'information',
+                            header: 'Information',
+                            rows: () => Promise.resolve([
+                                createLabel({
+                                    id: 'mangaId',
+                                    label: 'Manga ID',
+                                    value: mangaCanonicalId,
+                                }),
+                                ...oldIdWarning,
+
+                                createLabel({
+                                    id: 'mangaTitle',
+                                    label: 'Title',
+                                    value: info.titles[0],
+                                }),
+                                createLabel({
+                                    id: 'mangaRating',
+                                    value: info.rating?.toString() ?? 'N/A',
+                                    label: 'Rating'
+                                }),
+                                createLabel({
+                                    id: 'mangaStatus',
+                                    value: info.status.toString(),
+                                    label: 'Status'
+                                }),
+                                createLabel({
+                                    id: 'mangaIsAdult',
+                                    value: info.hentai?.toString() ?? 'N/A',
+                                    label: 'Is Adult'
+                                })
+                            ])
+                        }),
+                        createSection({
+                            id: 'trackList',
+                            header: 'Manga List',
+                            footer: 'Warning: Setting this to "None" will delete the listing from MangaUpdates',
+                            rows: () => Promise.resolve([
+                                createSelect({
+                                    id: 'listId',
+                                    value: [listId],
+                                    allowsMultiselect: false,
+                                    label: 'List',
+                                    displayLabel: (value) => listNamesById[value] || '<unknown list>',
+                                    options: lists.map(list => list.listId)
+                                })
+                            ])
+                        }),
+                        createSection({
+                            id: 'manage',
+                            header: 'Progress',
+                            rows: () => Promise.resolve([
+                                createStepper({
+                                    id: 'chapterProgress',
+                                    label: 'Chapter',
+                                    value: status.chapterProgress,
+                                    min: 0,
+                                    step: 1
+                                }),
+                                createStepper({
+                                    id: 'volumeProgress',
+                                    label: 'Volume',
+                                    value: status.volumeProgress,
+                                    min: 0,
+                                    step: 1
+                                })
+                            ])
+                        }),
+                    ]
+                } catch (e) {
+                    console.log('[getMangaForm] failed to render manga form')
+                    console.log(e)
+                    return [
+                        createSection({
+                            id: 'errorInfo',
+                            rows: () => Promise.resolve([
+                                createLabel({
+                                    id: 'errorMessage',
+                                    label: String(e),
+                                    value: undefined
+                                })
+                            ])
+                        }),
                     ]
                 }
-
-                const [avatarUrl, lists, mangaPage] = await Promise.all([
-                    this.getLoggedInUserAvatarUrl(),
-                    this.getLists(),
-                    this.loadMangaPage(mangaId),
-
-                ])
-                const info = mangaUtils.getMangaInfo(this.cheerio, mangaPage, mangaId)
-                const status = listUtils.getListInfo(this.cheerio, mangaPage, mangaId)
-
-                const listId = lists.find(list => list.listName === status.listName)?.listId
-                if (!listId) {
-                    console.log(`[getMangaForm] unable to find list: ${JSON.stringify({ info, status, lists })}}`)
-                    throw new Error('Unknown manga list!')
-                }
-
-                const listNamesById = Object.fromEntries(
-                    lists.map(list => [list.listId, list.listName])
-                )
-
-                return [
-                    createSection({
-                        id: 'userInfo',
-                        rows: () => Promise.resolve([
-                            createHeader({
-                                id: 'header',
-                                imageUrl: avatarUrl,
-                                title: username,
-                                subtitle: '',
-                                value: undefined
-                            })
-                        ])
-                    }),
-                    createSection({
-                        id: 'information',
-                        header: 'Information',
-                        rows: () => Promise.resolve([
-                            createLabel({
-                                id: 'mangaId',
-                                label: 'Manga ID',
-                                value: mangaId,
-                            }),
-
-                            createLabel({
-                                id: 'mangaTitle',
-                                label: 'Title',
-                                value: info.titles[0],
-                            }),
-                            createLabel({
-                                id: 'mangaRating',
-                                value: info.rating?.toString() ?? 'N/A',
-                                label: 'Rating'
-                            }),
-                            createLabel({
-                                id: 'mangaStatus',
-                                value: info.status.toString(),
-                                label: 'Status'
-                            }),
-                            createLabel({
-                                id: 'mangaIsAdult',
-                                value: info.hentai?.toString() ?? 'N/A',
-                                label: 'Is Adult'
-                            })
-                        ])
-                    }),
-                    createSection({
-                        id: 'trackList',
-                        header: 'Manga List',
-                        footer: 'Warning: Setting this to "None" will delete the listing from MangaUpdates',
-                        rows: () => Promise.resolve([
-                            createSelect({
-                                id: 'listId',
-                                value: [listId],
-                                allowsMultiselect: false,
-                                label: 'List',
-                                displayLabel: (value) => listNamesById[value] || '<unknown list>',
-                                options: lists.map(list => list.listId)
-                            })
-                        ])
-                    }),
-                    createSection({
-                        id: 'manage',
-                        header: 'Progress',
-                        rows: () => Promise.resolve([
-                            createStepper({
-                                id: 'chapterProgress',
-                                label: 'Chapter',
-                                value: status.chapterProgress,
-                                min: 0,
-                                step: 1
-                            }),
-                            createStepper({
-                                id: 'volumeProgress',
-                                label: 'Volume',
-                                value: status.volumeProgress,
-                                min: 0,
-                                step: 1
-                            })
-                        ])
-                    }),
-                ]
             },
             onSubmit: (values) => this.handleMangaFormChanges(values),
             validate: () => Promise.resolve(true)
@@ -324,36 +362,30 @@ export class MangaUpdates extends Tracker {
         const chapterReadActions = await actionQueue.queuedChapterReadActions()
         console.log(`${logPrefix} found ${chapterReadActions.length} action(s)`)
         for (const action of chapterReadActions) {
-            const params = {
-                mangaId: action.mangaId,
-                volumeProgress: Math.floor(action.volumeNumber) || 1,
-                chapterProgress: Math.floor(action.chapterNumber),
-            }
-            console.log(`${logPrefix} processing action: ${JSON.stringify(params)}`)
+            const mangaId = action.mangaId
+            const volumeProgress = Math.floor(action.volumeNumber) || 1
+            const chapterProgress = Math.floor(action.chapterNumber)
+            console.log(`${logPrefix} processing action: ${JSON.stringify({ mangaId, volumeProgress, chapterProgress })}`)
 
-            // If we're tracking the manga but it isn't on any list, then the
-            // progress update will do nothing. Make sure it's on a list.
-            //
-            // Don't bother to fail the entire action if this fails. In most
-            // cases the manga will already be on a list and I'd rather have
-            // the happy-path be more reliable.
             try {
                 const html = await this.loadMangaPage(action.mangaId)
+
+                // We might be tracking the manga using an old (pre-May'22) ID.
+                // Make sure we're using a new ID.
+                const mangaCanonicalId = mangaUtils.getIdFromPage(this.cheerio, html, action.mangaId)
+
+                // If we're tracking the manga but it isn't on any list, then the
+                // progress update will do nothing. Make sure it's on a list.
                 const list = listUtils.getListInfo(this.cheerio, html, action.mangaId)
                 if (list.listName === listUtils.STANDARD_LIST_NAMES.NONE) {
                     console.log(`${logPrefix} manga is not in a list - adding to Reading List`)
                     await this.setMangaList({
-                        mangaId: action.mangaId,
+                        mangaId: mangaCanonicalId,
                         listId: listUtils.STANDARD_LIST_IDS.READING,
                     })
                 }
-            } catch (e) {
-                console.log(`${logPrefix} list check failed`)
-                console.log(e)
-            }
 
-            try {
-                await this.setMangaProgress(params)
+                await this.setMangaProgress({ mangaId: mangaCanonicalId, volumeProgress, chapterProgress })
                 await actionQueue.discardChapterReadAction(action)
             } catch (e) {
                 console.log(`${logPrefix} progress update failed`)
@@ -565,6 +597,8 @@ export class MangaUpdates extends Tracker {
     ////////////////////
 
     private async loadMangaPage(mangaId: string): Promise<string> {
+        // Note that we might be tracking the manga using an old (pre-May'22)
+        // ID. Currently those IDs still seem to work here
         const response = await this.requestManager.schedule(
             createRequestObject({
                 url: `https://www.mangaupdates.com/series.html?id=${encodeURIComponent(mangaId)}`,
@@ -574,7 +608,7 @@ export class MangaUpdates extends Tracker {
         )
 
         if (response.status > 299) {
-            console.log(`[loadMangaInfo] failed (${response.status}): ${response.data}`)
+            console.log(`[loadMangaPage] failed (${response.status}): ${response.data}`)
             throw new Error('Manga request failed!')
         }
 
