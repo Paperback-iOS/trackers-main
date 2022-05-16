@@ -8,7 +8,7 @@ const logPrefix = '[mu-manga]'
 const MANGA_TITLE_MAIN = '#main_content .tabletitle'
 const MANGA_INFO_COLUMNS = '#main_content > .p-2:nth-child(2) > .row > .col-6'
 
-const MANGA_CATEGORY_VOTE_ANCHOR = '#cat_opts a'
+const MANGA_CANONICAL_URL = 'link[rel="canonical"]'
 
 const IS_HENTAI_GENRE: Record<string, boolean> = {
     Adult: true,
@@ -152,24 +152,23 @@ export function getMangaInfo($: CheerioAPI, html: string, mangaId: string): Mang
 }
 
 export function getIdFromPage($: CheerioAPI, html: string, mangaId: string): string {
-    const href = $(MANGA_CATEGORY_VOTE_ANCHOR, html).attr('href')
-    if (!href) {
-        throw new Error('unable to find ID')
+    const canonicalUrl = $(MANGA_CANONICAL_URL, html).attr('href')
+    if (!canonicalUrl) {
+        throw new Error('unable to find canonical URL')
     }
 
-    const matches = /\.showCat\((\d+),/.exec(href)
-    if (!matches) {
-        throw new Error('unable to parse ID')
+    const parsedUrl = /series\/([A-Za-z0-9]+)\//.exec(canonicalUrl)
+    if (!parsedUrl) {
+        throw new Error('unable to parse canonical URL')
     }
 
-    const canonicalId = matches[1]
-    if (!canonicalId) {
-        // should be impossible, but TS thinks the elements of a RegExpExecArray
-        // are `string | undefined`
-        throw new Error('empty ID')
+    const base36Id = parsedUrl[1] || ''
+    const id = parseInt(base36Id, 36)
+    if (!base36Id || isNaN(id)) {
+        throw new Error('invalid canonical ID')
     }
 
-    console.log(`${logPrefix} found ID (id=${mangaId}): ${canonicalId}`)
+    console.log(`${logPrefix} found ID (id=${mangaId}): ${id}`)
 
-    return canonicalId
+    return String(id)
 }
