@@ -1,21 +1,46 @@
 import {
-    ContentRating,
-    SourceInfo,
     Tracker,
+    ContentRating,
+} from 'paperback-extensions-common'
+import type {
+    SourceInfo,
     TrackedManga,
+    Manga,
     Form,
     FormRow,
     Section,
     SearchRequest,
     PagedResults,
     TrackerActionQueue,
-    Cookie,
+    TrackedMangaChapterReadAction,
 } from 'paperback-extensions-common'
 
-import * as sessionUtils from './utils/mu-session'
-import * as searchUtils from './utils/mu-search'
-import * as mangaUtils from './utils/mu-manga'
-import * as listUtils from './utils/mu-lists'
+import {
+    Credentials,
+    validateCredentials,
+    getUserCredentials,
+    setUserCredentials,
+    clearUserCredentials,
+    getSessionToken,
+    setSessionToken,
+    clearSessionToken,
+    getLoginTime,
+    loggableRequest,
+    loggableResponse,
+} from './utils/mu-session'
+import {
+    parseMangaInfo,
+    getIdFromPage,
+} from './utils/mu-manga'
+import { parseSearchResults } from './utils/mu-search'
+import type {
+    Endpoint,
+    Verb,
+    Request,
+    Response,
+    BaseRequest
+} from './models'
+import type { MUListsSeriesModelUpdateV1 } from './models/mu-api'
 
 interface MangaFormValues {
     mangaId: string;
@@ -24,42 +49,37 @@ interface MangaFormValues {
     mangaStatus: string;
     mangaIsAdult: string;
 
+    isInList: 'Yes' | 'No';
     listId: [string];
 
     chapterProgress: number;
     volumeProgress: number;
+
+    userRating: number
 }
 
+interface ParsedAction {
+    action: TrackedMangaChapterReadAction;
+    isUpdate: boolean;
+    payload: MUListsSeriesModelUpdateV1
+}
+
+const FALLBACK_PROFILE_IMAGE = 'https://cdn.mangaupdates.com/avatar/a0.gif'
+const DEFAULT_LIST_ID = 0 // Reading List
 
 export const MangaUpdatesInfo: SourceInfo = {
     name: 'MangaUpdates',
     author: 'IntermittentlyRupert',
     contentRating: ContentRating.EVERYONE,
     icon: 'icon.png',
-    version: '1.0.1',
+    version: '2.0.0',
     description: 'MangaUpdates Tracker',
     websiteBaseURL: 'https://www.mangaupdates.com',
 }
 
 export class MangaUpdates extends Tracker {
     stateManager = createSourceStateManager({});
-    requestManager = createRequestManager({
-        requestsPerSecond: 2.5,
-        requestTimeout: 20000,
-        interceptor: {
-            interceptRequest: async (request) => {
-                request.cookies = await sessionUtils.getCookies(this.stateManager)
-                return request
-            },
-            interceptResponse: async (response) => {
-                // TODO: clean this up once new paperback-extensions-common is released
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const cookies: Cookie[] = (this.requestManager as any).cookieStore.getAllCookies()
-                await sessionUtils.addCookies(this.stateManager, cookies)
-                return response
-            },
-        },
-    });
+    requestManager = createRequestManager({ requestsPerSecond: 5, requestTimeout: 10000 });
 
     ////////////////////
     // Public API
@@ -70,10 +90,15 @@ export class MangaUpdates extends Tracker {
         console.log(`${logPrefix} starts`)
         try {
             console.log(`${logPrefix} loading id=${mangaId}`)
-            const html = await this.loadMangaPage(mangaId)
-            const info = mangaUtils.getMangaInfo(this.cheerio, html, mangaId)
+
+            const mangaInfo = await this.getMangaInfo(mangaId)
+            const trackedManga = createTrackedManga({
+                id: mangaId,
+                mangaInfo: createMangaInfo(mangaInfo)
+            })
+
             console.log(`${logPrefix} complete`)
-            return createTrackedManga({ id: mangaId, mangaInfo: createMangaInfo(info) })
+            return trackedManga
         } catch (e) {
             console.log(`${logPrefix} error`)
             console.log(e)
@@ -85,7 +110,7 @@ export class MangaUpdates extends Tracker {
         return createForm({
             sections: async () => {
                 try {
-                    const username = (await sessionUtils.getUserCredentials(this.stateManager))?.username
+                    const username = (await getUserCredentials(this.stateManager))?.username
                     if (!username) {
                         return [
                             createSection({
@@ -101,31 +126,22 @@ export class MangaUpdates extends Tracker {
                         ]
                     }
 
-                    const [avatarUrl, lists, mangaPage] = await Promise.all([
-                        this.getLoggedInUserAvatarUrl(),
-                        this.getLists(),
-                        this.loadMangaPage(mangaId),
-
+                    const canonicalId = await this.getCanonicalId(mangaId)
+                    const [userProfile, mangaInfo, mangaLists, progressInfo, ratingInfo] = await Promise.all([
+                        this.request('/v1/account/profile', 'GET', {}),
+                        this.getMangaInfo(canonicalId),
+                        this.request('/v1/lists', 'GET', {}),
+                        this.request('/v1/lists/series/{seriesId}', 'GET', {
+                            params: { seriesId: canonicalId },
+                            query: {}
+                        }, false),
+                        this.request('/v1/series/{id}/rating', 'GET', {
+                            params: { id: canonicalId }
+                        }, false)
                     ])
 
-                    // We might be tracking the manga using an old (pre-May'22)
-                    // ID. Make sure we're using a new ID.
-                    const mangaCanonicalId = mangaUtils.getIdFromPage(this.cheerio, mangaPage, mangaId)
-                    const info = mangaUtils.getMangaInfo(this.cheerio, mangaPage, mangaId)
-                    const status = listUtils.getListInfo(this.cheerio, mangaPage, mangaId)
-
-                    const listId = lists.find(list => list.listName === status.listName)?.listId
-                    if (!listId) {
-                        console.log(`[getMangaForm] unable to find list: ${JSON.stringify({ info, status, lists })}}`)
-                        throw new Error('Unknown manga list!')
-                    }
-
-                    const listNamesById = Object.fromEntries(
-                        lists.map(list => [list.listId, list.listName])
-                    )
-
                     const oldIdWarning: FormRow[] = []
-                    if (mangaId !== mangaCanonicalId) {
+                    if (mangaId !== canonicalId) {
                         oldIdWarning.push(
                             createLabel({
                                 id: 'legacyMangaId',
@@ -140,13 +156,27 @@ export class MangaUpdates extends Tracker {
                         )
                     }
 
+                    const listNamesById = Object.fromEntries([
+                        ...mangaLists
+                            .filter(list => list.list_id != undefined && list.title != undefined)
+                            .map(list => [String(list.list_id), list.title || '']),
+                        ['-1', 'None']
+                    ])
+                    const listOptions = Object.keys(listNamesById)
+
+                    const listId = String(progressInfo?.list_id ?? -1)
+                    const chapterProgress = progressInfo?.status?.chapter ?? 0
+                    const volumeProgress = progressInfo?.status?.volume ?? 0
+
+                    const userRating = ratingInfo?.rating ?? 0
+
                     return [
                         createSection({
                             id: 'userInfo',
                             rows: () => Promise.resolve([
                                 createHeader({
                                     id: 'header',
-                                    imageUrl: avatarUrl,
+                                    imageUrl: userProfile.avatar?.url || FALLBACK_PROFILE_IMAGE,
                                     title: username,
                                     subtitle: '',
                                     value: undefined
@@ -160,28 +190,28 @@ export class MangaUpdates extends Tracker {
                                 createLabel({
                                     id: 'mangaId',
                                     label: 'Manga ID',
-                                    value: mangaCanonicalId,
+                                    value: canonicalId,
                                 }),
                                 ...oldIdWarning,
 
                                 createLabel({
                                     id: 'mangaTitle',
                                     label: 'Title',
-                                    value: info.titles[0],
+                                    value: mangaInfo.titles[0],
                                 }),
                                 createLabel({
                                     id: 'mangaRating',
-                                    value: info.rating?.toString() ?? 'N/A',
+                                    value: mangaInfo.rating?.toString() ?? 'N/A',
                                     label: 'Rating'
                                 }),
                                 createLabel({
                                     id: 'mangaStatus',
-                                    value: info.status.toString(),
+                                    value: mangaInfo.status.toString(),
                                     label: 'Status'
                                 }),
                                 createLabel({
                                     id: 'mangaIsAdult',
-                                    value: info.hentai?.toString() ?? 'N/A',
+                                    value: mangaInfo.hentai?.toString() ?? 'N/A',
                                     label: 'Is Adult'
                                 })
                             ])
@@ -191,13 +221,18 @@ export class MangaUpdates extends Tracker {
                             header: 'Manga List',
                             footer: 'Warning: Setting this to "None" will delete the listing from MangaUpdates',
                             rows: () => Promise.resolve([
+                                createLabel({
+                                    id: 'isInList',
+                                    value: progressInfo ? 'Yes' : 'No',
+                                    label: 'Tracked on MangaUpdates?',
+                                }),
                                 createSelect({
                                     id: 'listId',
                                     value: [listId],
                                     allowsMultiselect: false,
                                     label: 'List',
                                     displayLabel: (value) => listNamesById[value] || '<unknown list>',
-                                    options: lists.map(list => list.listId)
+                                    options: listOptions
                                 })
                             ])
                         }),
@@ -208,17 +243,32 @@ export class MangaUpdates extends Tracker {
                                 createStepper({
                                     id: 'chapterProgress',
                                     label: 'Chapter',
-                                    value: status.chapterProgress,
+                                    value: chapterProgress,
                                     min: 0,
                                     step: 1
                                 }),
                                 createStepper({
                                     id: 'volumeProgress',
                                     label: 'Volume',
-                                    value: status.volumeProgress,
+                                    value: volumeProgress,
                                     min: 0,
                                     step: 1
                                 })
+                            ])
+                        }),
+                        createSection({
+                            id: 'rating',
+                            header: 'User Rating',
+                            footer: 'Warning: Setting this to 0 will delete the rating from MangaUpdates',
+                            rows: () => Promise.resolve([
+                                createStepper({
+                                    id: 'userRating',
+                                    label: 'My Rating',
+                                    value: Math.round(userRating),
+                                    min: 0,
+                                    max: 10,
+                                    step: 1
+                                }),
                             ])
                         }),
                     ]
@@ -249,13 +299,22 @@ export class MangaUpdates extends Tracker {
             id: 'sourceMenu',
             header: 'Source Menu',
             rows: async () => {
-                const username = (await sessionUtils.getUserCredentials(this.stateManager))?.username
-                if (username) {
+                const [credentials, sessionToken] = await Promise.all([
+                    getUserCredentials(this.stateManager),
+                    getSessionToken(this.stateManager)
+                ])
+
+                if (credentials?.username) {
                     return [
                         createLabel({
                             id: 'userInfo',
                             label: 'Logged-in as',
-                            value: username,
+                            value: credentials.username,
+                        }),
+                        createLabel({
+                            id: 'loginTime',
+                            label: 'Session started at',
+                            value: getLoginTime(sessionToken),
                         }),
                         createButton({
                             id: 'refresh',
@@ -268,7 +327,7 @@ export class MangaUpdates extends Tracker {
                             label: 'Logout',
                             value: undefined,
                             onTap: () => this.logout(),
-                        }),
+                        })
                     ]
                 }
 
@@ -316,38 +375,45 @@ export class MangaUpdates extends Tracker {
         })
     }
 
-    async getSearchResults(query: SearchRequest, metadata: searchUtils.SearchMetadata | undefined): Promise<PagedResults> {
+    async getSearchResults(query: SearchRequest, metadata?:{ nextPage?: number }): Promise<PagedResults> {
         const logPrefix = '[getSearchResults]'
         console.log(`${logPrefix} starts`)
         try {
             const search = query.title || ''
-            const page = metadata?.nextPage || 1
+            const page = metadata?.nextPage ?? 1
+            const perpage = 25
 
             // MangaUpdates will return an error for empty search strings
-            if (!search) {
-                console.log(`${logPrefix} ignoring empty search`)
-                return createPagedResults({ results: [], metadata: { nextPage: null } })
+            if (!search || page < 1) {
+                console.log(`${logPrefix} no need to search: ${JSON.stringify({ search, page })}`)
+                return createPagedResults({ results: [], metadata: { nextPage: -1 } })
             }
-
 
             console.log(`${logPrefix} searching for "${search}" (page=${page})`)
-            const response = await this.requestManager.schedule(
-                createRequestObject({
-                    url: `https://www.mangaupdates.com/series.html?search=${encodeURIComponent(search)}&page=${encodeURIComponent(page)}`,
-                    method: 'GET',
-                }),
-                1
-            )
+            const response = await this.request('/v1/series/search', 'POST', {
+                body: {
+                    search,
+                    page,
+                    perpage
+                }
+            })
+            const results = parseSearchResults(response.results || [])
 
-            if (response.status > 299) {
-                console.log(`${logPrefix} failed (${response.status}): ${response.data}`)
-                throw new Error('Search request failed!')
-            }
+            const hasNextPage = page * perpage < (response.total_hits ?? 0)
+            const nextPage = hasNextPage ? page + 1 : -1
 
-            const results = searchUtils.parseSearchResults(this.cheerio, response.data)
+            console.log(`${logPrefix} got results: ${JSON.stringify({ results, nextPage })}`)
+
+            const pagedResults = createPagedResults({
+                results: results.map(result => createMangaTile({
+                    ...result,
+                    title: createIconText({ text: result.title })
+                })),
+                metadata: { nextPage }
+            })
 
             console.log(`${logPrefix} complete`)
-            return results
+            return pagedResults
         } catch (e) {
             console.log(`${logPrefix} error`)
             console.log(e)
@@ -361,36 +427,40 @@ export class MangaUpdates extends Tracker {
 
         const chapterReadActions = await actionQueue.queuedChapterReadActions()
         console.log(`${logPrefix} found ${chapterReadActions.length} action(s)`)
-        for (const action of chapterReadActions) {
-            const mangaId = action.mangaId
-            const volumeProgress = Math.floor(action.volumeNumber) || 1
-            const chapterProgress = Math.floor(action.chapterNumber)
-            console.log(`${logPrefix} processing action: ${JSON.stringify({ mangaId, volumeProgress, chapterProgress })}`)
 
+        const operations = await Promise.all(chapterReadActions.map(action => this.parseAction(action)))
+
+        // Apply the operations in bulk (MU has a ~5 second rate limit for these
+        // APIs).
+        //
+        // There will almost always be 0 or 1 queued action so I'm not super
+        // fussed about maximally parallelising this.
+
+        const listUpdates = operations.filter(operation => operation.isUpdate)
+        if (listUpdates.length > 0) {
             try {
-                const html = await this.loadMangaPage(action.mangaId)
-
-                // We might be tracking the manga using an old (pre-May'22) ID.
-                // Make sure we're using a new ID.
-                const mangaCanonicalId = mangaUtils.getIdFromPage(this.cheerio, html, action.mangaId)
-
-                // If we're tracking the manga but it isn't on any list, then the
-                // progress update will do nothing. Make sure it's on a list.
-                const list = listUtils.getListInfo(this.cheerio, html, action.mangaId)
-                if (list.listName === listUtils.STANDARD_LIST_NAMES.NONE) {
-                    console.log(`${logPrefix} manga is not in a list - adding to Reading List`)
-                    await this.setMangaList({
-                        mangaId: mangaCanonicalId,
-                        listId: listUtils.STANDARD_LIST_IDS.READING,
-                    })
-                }
-
-                await this.setMangaProgress({ mangaId: mangaCanonicalId, volumeProgress, chapterProgress })
-                await actionQueue.discardChapterReadAction(action)
+                const updateBody = listUpdates.map(({ payload }) => payload)
+                console.log(`${logPrefix} applying list updates: ${JSON.stringify(updateBody)}`)
+                await this.request('/v1/lists/series/update', 'POST', { body: updateBody })
+                await Promise.all(listUpdates.map(({ action }) => actionQueue.discardChapterReadAction(action)))
             } catch (e) {
-                console.log(`${logPrefix} progress update failed`)
+                console.log(`${logPrefix} list updates failed`)
                 console.log(e)
-                await actionQueue.retryChapterReadAction(action)
+                await Promise.all(listUpdates.map(({ action }) => actionQueue.retryChapterReadAction(action)))
+            }
+        }
+
+        const listAdditions = operations.filter(operation => !operation.isUpdate)
+        if (listAdditions.length > 0) {
+            try {
+                const additionBody = listAdditions.map(({ payload }) => payload)
+                console.log(`${logPrefix} applying list additions: ${JSON.stringify(additionBody)}`)
+                await this.request('/v1/lists/series', 'POST', { body: additionBody })
+                await Promise.all(listAdditions.map(({ action }) => actionQueue.discardChapterReadAction(action)))
+            } catch (e) {
+                console.log(`${logPrefix} list additions failed`)
+                console.log(e)
+                await Promise.all(listAdditions.map(({ action }) => actionQueue.retryChapterReadAction(action)))
             }
         }
 
@@ -401,60 +471,43 @@ export class MangaUpdates extends Tracker {
     // Session Management
     ////////////////////
 
-    private async login(credentials: sessionUtils.Credentials): Promise<void> {
+    private async login(credentials: Credentials): Promise<void> {
         const logPrefix = '[login]'
         console.log(`${logPrefix} starts`)
 
-        if (!sessionUtils.validateCredentials(credentials)) {
-            console.error(`${logPrefix} tried to store invalid mu_credentials: ${JSON.stringify(credentials)}`)
+        if (!validateCredentials(credentials)) {
+            console.error(`${logPrefix} login called with invalid credentials: ${JSON.stringify(credentials)}`)
             throw new Error('Must provide a username and password!')
         }
 
         try {
-            const username = encodeURIComponent(credentials.username)
-            const password = encodeURIComponent(credentials.password)
-
-            const loginResponse = await this.requestManager.schedule(
-                createRequestObject({
-                    url: 'https://www.mangaupdates.com/login.html',
-                    method: 'POST',
-                    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-                    data: `act=login&username=${username}&password=${password}`,
-                }),
-                0
-            )
-            if (loginResponse.status > 299) {
-                console.log(`${logPrefix} login error (${loginResponse.status}): ${loginResponse.data}`)
-                throw new Error('Incorrect username/password!')
+            const result = await this.request('/v1/account/login', 'PUT', {
+                body: credentials
+            })
+            const sessionToken = result.context?.session_token
+            if (!sessionToken) {
+                console.log(`${logPrefix} no session token on response: ${JSON.stringify(result)}`)
+                throw new Error('no session token on response')
             }
 
-            // Sanity check to make sure the cookies actually work
-            const userProfileResponse = await this.requestManager.schedule(
-                createRequestObject({
-                    url: 'https://www.mangaupdates.com/submit.html',
-                    method: 'GET',
-                }),
-                0
-            )
-            if (userProfileResponse.status > 299 || !userProfileResponse.data.includes(`Welcome back, ${credentials.username}`)) {
-                console.log(`${logPrefix} profile check failed (${userProfileResponse.status}): ${userProfileResponse.data}`)
-                throw new Error('Incorrect username/password!')
-            }
+            await Promise.all([
+                setUserCredentials(this.stateManager, credentials),
+                setSessionToken(this.stateManager, sessionToken)
+            ])
 
-            await sessionUtils.setUserCredentials(this.stateManager, credentials)
+            console.log(`${logPrefix} complete`)
         } catch (e) {
             console.log(`${logPrefix} failed to log in`)
             console.log(e)
             throw new Error('Login failed!')
         }
-        console.log(`${logPrefix} complete`)
     }
 
     private async refreshSession(): Promise<void> {
         const logPrefix = '[refreshSession]'
         console.log(`${logPrefix} starts`)
 
-        const credentials = await sessionUtils.getUserCredentials(this.stateManager)
+        const credentials = await getUserCredentials(this.stateManager)
         if (!credentials) {
             console.log(`${logPrefix} no credentials available, unable to refresh`)
             throw new Error('Could not find login credentials!')
@@ -467,175 +520,260 @@ export class MangaUpdates extends Tracker {
     }
 
     private async logout(): Promise<void> {
+        try {
+            await this.request('/v1/account/logout', 'POST', {})
+        } catch (e) {
+            console.log('[logout] failed to delete session token')
+            console.log(e)
+        }
+
         await Promise.all([
-            sessionUtils.clearUserCredentials(this.stateManager),
-            sessionUtils.clearCookies(this.stateManager),
+            clearUserCredentials(this.stateManager),
+            clearSessionToken(this.stateManager),
         ])
     }
 
-    private async getLoggedInUserAvatarUrl(): Promise<string> {
+    ////////////////////
+    // Request Handlers
+    ////////////////////
+
+    private async getCanonicalId(mangaId: string): Promise<string> {
+        const logPrefix = '[getCanonicalId]'
+
+        // The shortest new ID I could find was 8 decimal digits, but all old
+        // IDs are definitely <=6 decimal digits.
+        if (mangaId.length > 6) {
+            return mangaId
+        }
+
+        console.log(`${logPrefix} legacy ID detected: ${mangaId}`)
+
         const response = await this.requestManager.schedule(
             createRequestObject({
-                url: 'https://www.mangaupdates.com/submit.html?act=edit_profile',
+                url: `https://www.mangaupdates.com/series.html?id=${mangaId}`,
                 method: 'GET',
             }),
             1
         )
 
-        // not worth throwing here - we'll just return the fallback image
         if (response.status > 299) {
-            console.log(`[getLoggedInUserAvatarUrl] failed (${response.status}): ${response.data}`)
+            console.log(`[${logPrefix}] failed to load page (${response.status}): ${response.data}`)
+            throw new Error('failed to load canonical ID for ${mangaId}')
         }
 
-        return sessionUtils.getUserProfileImage(this.cheerio, response.data)
+        const canonicalId = getIdFromPage(this.cheerio, response.data)
+
+        console.log(`${logPrefix} mapped to canonical ID: ${mangaId} --> ${canonicalId}`)
+
+        return canonicalId
     }
 
-    ////////////////////
-    // List Management
-    ////////////////////
+    private async getMangaInfo(canonicalId: string): Promise<Manga> {
+        const logPrefix = '[getMangaInfo]'
+        console.log(`${logPrefix} start: ${canonicalId}`)
+
+        const series = await this.request('/v1/series/{id}', 'GET', {
+            params: { id: canonicalId },
+            query: {},
+        })
+
+        const mangaInfo = parseMangaInfo(series)
+
+        console.log(`${logPrefix} complete: ${JSON.stringify(mangaInfo)}`)
+
+        return mangaInfo
+    }
 
     private async handleMangaFormChanges(values: MangaFormValues): Promise<void> {
         const logPrefix = '[handleMangaFormChanges]'
         console.log(`${logPrefix} starts: ${JSON.stringify(values)}`)
 
-        // These requests are all idempotent, so it's fairly safe for us to make
-        // them unconditionally. If somebody makes a change via the website
-        // between when they load the form and when they submit it, then I'll
-        // clobber that change, but also don't do silly things like that.
         try {
-            const actions: Promise<void>[] = [
-                this.setMangaList({
-                    mangaId: values.mangaId,
-                    listId: values.listId[0]
-                }),
-            ]
+            const numericId = parseInt(values.mangaId)
+            const isInList = values.isInList === 'Yes'
+            const shouldDelete = values.listId[0] === '-1'
 
-            if (values.listId[0] !== listUtils.STANDARD_LIST_IDS.NONE) {
+            const actions: Promise<unknown>[] = []
+
+            if (shouldDelete) {
+                console.log(`${logPrefix} deleting from list`)
                 actions.push(
-                    this.setMangaProgress({
-                        mangaId: values.mangaId,
-                        volumeProgress: values.volumeProgress,
-                        chapterProgress: values.chapterProgress,
-                    }),
+                    this.request('/v1/lists/series/delete', 'POST', {
+                        body: [numericId]
+                    })
+                )
+            } else {
+                console.log(`${logPrefix} updating in list`)
+                actions.push(
+                    this.request(
+                        isInList ? '/v1/lists/series/update' : '/v1/lists/series',
+                        'POST',
+                        {
+                            body: [{
+                                series: { id: numericId },
+                                list_id: parseInt(values.listId[0]),
+                                status: {
+                                    volume: values.volumeProgress,
+                                    chapter: values.chapterProgress,
+                                }
+                            }]
+                        }
+                    )
+                )
+            }
+
+            if (values.userRating > 0) {
+                actions.push(
+                    this.request('/v1/series/{id}/rating', 'PUT', {
+                        params: { id: values.mangaId },
+                        body: { rating: values.userRating }
+                    })
+                )
+            } else {
+                actions.push(
+                    this.request('/v1/series/{id}/rating', 'DELETE', {
+                        params: { id: values.mangaId }
+                    })
                 )
             }
 
             await Promise.all(actions)
+            console.log(`${logPrefix} complete`)
         } catch (e) {
             console.log(`${logPrefix} failed`)
             console.log(e)
             throw e
         }
-
-        console.log(`${logPrefix} complete`)
     }
 
-    private async setMangaList(params: { mangaId: string, listId: string }): Promise<void> {
-        const logPrefix = '[setMangaList]'
-        console.log(`${logPrefix} starts: ${JSON.stringify(params)}`)
+    private async parseAction(action: TrackedMangaChapterReadAction): Promise<ParsedAction> {
+        const canonicalId = await this.getCanonicalId(action.mangaId)
+        const listInfo = await this.request('/v1/lists/series/{seriesId}', 'GET', {
+            params: { seriesId: canonicalId },
+            query: {}
+        }, false)
 
-        const query = [
-            `s=${encodeURIComponent(params.mangaId)}`,
-            `l=${encodeURIComponent(params.listId)}`,
-            `cache_j=${Math.floor(100000000 * Math.random())},${Math.floor(100000000 * Math.random())},${Math.floor(100000000 * Math.random())}`
-        ]
-
-        if (params.listId === listUtils.STANDARD_LIST_IDS.NONE) {
-            // deletion flag
-            query.push('r=1')
+        return {
+            action,
+            isUpdate: !!listInfo,
+            payload: {
+                series: { id: parseInt(canonicalId) },
+                list_id: listInfo?.list_id ?? DEFAULT_LIST_ID,
+                status: {
+                    volume: Math.floor(action.volumeNumber) || 1,
+                    chapter: Math.floor(action.chapterNumber) || 1,
+                }
+            }
         }
-
-        const response = await this.requestManager.schedule(
-            createRequestObject({
-                url: `https://www.mangaupdates.com/ajax/list_update.php?${query.join('&')}`,
-                method: 'GET',
-            }),
-            1
-        )
-
-        if (response.status > 299) {
-            console.log(`${logPrefix} failed (${response.status}): ${response.data}`)
-            throw new Error('Manga list update failed!')
-        }
-
-        console.log(`${logPrefix} complete`)
-    }
-
-    private async setMangaProgress(params: { mangaId: string, volumeProgress: number, chapterProgress: number  }): Promise<void> {
-        const logPrefix = '[setMangaProgress]'
-        console.log(`${logPrefix} starts: ${JSON.stringify(params)}`)
-
-        const query = [
-            'ver=2',
-            `s=${encodeURIComponent(params.mangaId)}`,
-            `set_v=${encodeURIComponent(params.volumeProgress)}`,
-            `set_c=${encodeURIComponent(params.chapterProgress)}`,
-            `cache_j=${Math.floor(100000000 * Math.random())},${Math.floor(100000000 * Math.random())},${Math.floor(100000000 * Math.random())}`
-
-            // MangaUpdates sends this, but it doesn't seem to be necessary...
-            // `lid=${encodeURIComponent(params.listId)}`,
-        ]
-
-        const response = await this.requestManager.schedule(
-            createRequestObject({
-                url: `https://www.mangaupdates.com/ajax/chap_update.php?${query.join('&')}`,
-                method: 'GET',
-            }),
-            1
-        )
-
-        if (response.status > 299) {
-            console.log(`${logPrefix} failed (${response.status}): ${response.data}`)
-            throw new Error('Manga progress update failed!')
-        }
-
-        console.log(`${logPrefix} complete`)
     }
 
     ////////////////////
-    // Other Data Fetching
+    // API Request
     ////////////////////
 
-    private async loadMangaPage(mangaId: string): Promise<string> {
-        // Note that we might be tracking the manga using an old (pre-May'22)
-        // ID. Currently those IDs still seem to work here
-        const response = await this.requestManager.schedule(
-            createRequestObject({
-                url: `https://www.mangaupdates.com/series.html?id=${encodeURIComponent(mangaId)}`,
-                method: 'GET',
-            }),
-            1
-        )
-
-        if (response.status > 299) {
-            console.log(`[loadMangaPage] failed (${response.status}): ${response.data}`)
-            throw new Error('Manga request failed!')
+    private async getAuthHeader(): Promise<string> {
+        const existingSessionToken = await getSessionToken(this.stateManager)
+        if (existingSessionToken) {
+            return `Bearer ${existingSessionToken}`
         }
 
-        return response.data
+        // If this is the user's first request after upgrading to v2 they may
+        // have credentials but no API session token.
+        const credentials = await getUserCredentials(this.stateManager)
+        if (credentials) {
+            await this.login(credentials)
+
+            const newSessionToken = await getSessionToken(this.stateManager)
+            if (newSessionToken) {
+                return `Bearer ${newSessionToken}`
+            }
+        }
+
+        throw new Error('You must be logged in!')
     }
 
-    private async getLists(): Promise<{listId: string, listName: string}[]> {
-        const standardLists = listUtils.STANDARD_LISTS.map((list) => ({
-            listId: listUtils.STANDARD_LIST_IDS[list],
-            listName: listUtils.STANDARD_LIST_NAMES[list]
-        }))
+    /** Will **resolve to undefined** if the response has a non-2xx status. */
+    private async request<E extends Endpoint, V extends Verb<E>>(
+        endpoint: E,
+        verb: V,
+        request: Request<E, V>,
+        failOnErrorStatus: false,
+        retryCount?: number,
+    ): Promise<Response<E, V> | undefined>
+    /** Will **reject** if the response has a non-2xx status. */
+    private async request<E extends Endpoint, V extends Verb<E>>(
+        endpoint: E,
+        verb: V,
+        request: Request<E, V>,
+        failOnErrorStatus?: boolean,
+        retryCount?: number,
+    ): Promise<Response<E, V>>
+    /** Will **reject** if the response has a non-2xx status. */
+    private async request<E extends Endpoint, V extends Verb<E>>(
+        endpoint: E,
+        verb: V,
+        request: Request<E, V>,
+        failOnErrorStatus = true,
+        retryCount = 1,
+    ): Promise<Response<E, V>> {
+        const logPrefix = `[request] ${verb} ${endpoint}`
+        const isLogin = endpoint === '/v1/account/login'
+        const baseRequest: Partial<BaseRequest> = request
 
-        const customListsResponse = await this.requestManager.schedule(
-            createRequestObject({
-                url: 'https://www.mangaupdates.com/mylist.html?act=edit',
-                method: 'GET',
-            }),
-            1
-        )
+        console.log(`${logPrefix} starts (failOnErrorStatus=${failOnErrorStatus}, retryCount=${retryCount}): ${loggableRequest(baseRequest)}`)
 
-        if (customListsResponse.status > 299) {
-            console.log(`[getLists] failed (${customListsResponse.status}): ${customListsResponse.data}`)
-            throw new Error('Custom lists request failed!')
+        const path = Object.entries(baseRequest.params || {})
+            .filter((entry) => entry[1] != undefined)
+            .map(([name, value]) => [`{${name}}`, String(value)] as const)
+            .reduce(
+                (partialPath, [token, value]) => {
+                    if (!partialPath.includes(token)) {
+                        console.log(`${logPrefix} endpoint '${endpoint}' does not contain ${token}!`)
+                        throw new Error('endpoint is missing path parameter')
+                    }
+                    return endpoint.replace(token, String(value))
+                },
+                endpoint as string
+            )
+
+        const query = Object.entries(baseRequest.query || {})
+            .filter((entry) => entry[1] != undefined)
+            .map(([name, value]) => `${name}=${encodeURIComponent(String(value))}`)
+            .join('&')
+
+        const headers: Record<string, string> = {
+            'accept': 'application/json'
+        }
+        if (baseRequest.body) {
+            headers['content-type'] = 'application/json'
+        }
+        if (!isLogin) {
+            headers.authorization = await this.getAuthHeader()
         }
 
-        const customLists = listUtils.getCustomLists(this.cheerio, customListsResponse.data)
+        const start = Date.now()
+        const response = await this.requestManager.schedule(
+            createRequestObject({
+                url: `https://api.mangaupdates.com${path}`,
+                method: verb,
+                param: query,
+                data: baseRequest.body ? JSON.stringify(baseRequest.body) : undefined,
+                headers
+            }),
+            retryCount
+        )
+        const duration = Date.now() - start
 
-        return [...standardLists, ...customLists]
+        const responseBody = response.data ? JSON.parse(response.data) : undefined
+        console.log(`${logPrefix} response: (HTTP ${response.status}, ${duration}ms): ${loggableResponse(responseBody)}`)
+
+        const ok = response.status >= 200 && response.status < 300
+        if (failOnErrorStatus && !ok) {
+            console.log(`${logPrefix} failed`)
+            throw new Error('Request failed!')
+        }
+
+        console.log(`${logPrefix} complete`)
+        return responseBody
     }
 }

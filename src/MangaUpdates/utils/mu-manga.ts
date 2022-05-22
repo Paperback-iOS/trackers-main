@@ -1,12 +1,9 @@
-import {
+import type {
     Tracker,
     Manga,
 } from 'paperback-extensions-common'
 
-const logPrefix = '[mu-manga]'
-
-const MANGA_TITLE_MAIN = '#main_content .tabletitle'
-const MANGA_INFO_COLUMNS = '#main_content > .p-2:nth-child(2) > .row > .col-6'
+import type { MUSeriesModelV1 } from '../models/mu-api'
 
 const MANGA_CANONICAL_URL = 'link[rel="canonical"]'
 
@@ -18,55 +15,7 @@ const IS_HENTAI_GENRE: Record<string, boolean> = {
 
 type CheerioAPI = Tracker['cheerio']
 
-function getSectionContent($: CheerioAPI, html: string, title: string) {
-    const columns = $(MANGA_INFO_COLUMNS, html)
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const isSectionHeader = (el: any) => !!el && $(el).hasClass('sCat')
-
-    const debugSectionsFound: string[] = []
-
-    const leftColSections = $(columns[0]).children()
-    for (let i = 0; i < leftColSections.length - 1; i++) {
-        if (isSectionHeader(leftColSections[i])) {
-            const currTitle = $('b', leftColSections[i]).text().trim()
-            debugSectionsFound.push(currTitle)
-            if (currTitle === title) {
-                return $(leftColSections[i + 1])
-            }
-        }
-    }
-
-    const rightColSections = $(columns[1]).children()
-    for (let i = 0; i < rightColSections.length - 1; i++) {
-        if (isSectionHeader(rightColSections[i])) {
-            const currTitle = $('b', rightColSections[i]).text().trim()
-            debugSectionsFound.push(currTitle)
-            if (currTitle === title) {
-                return $(rightColSections[i + 1])
-            }
-        }
-    }
-
-    console.log(`${logPrefix} failed to find section "${title}": ${JSON.stringify(debugSectionsFound)}`)
-    throw new Error('Failed to find section content')
-}
-
-function getFirstLine(str: string): string {
-    // find the first non-empty line in the string
-    return str.trim().split('\n').map(line => line.trim()).find(line => line) || ''
-}
-
-function parseTitles($: CheerioAPI, html: string): string[] {
-    const mainTitle = $(MANGA_TITLE_MAIN, html).text().trim()
-    const altTitles = getSectionContent($, html, 'Associated Names')
-        .text()
-        .split('\n')
-        .map(title => title.trim())
-    return [mainTitle, ...altTitles].filter(title => title && title !== 'N/A')
-}
-
-function parseStatus($: CheerioAPI, html: string): string {
+function parseStatus(status: string): 'ONGOING' | 'ABANDONED' | 'HIATUS' | 'COMPLETED' | 'UNKNOWN' {
     // NOTE: There can be a decent amount of variation in the format here.
     //
     // Series with multiple seasons (e.g. manhwa) may have something like:
@@ -76,82 +25,60 @@ function parseStatus($: CheerioAPI, html: string): string {
     //   > S1: 38 Chapters (Complete) 1~38
     //   > S2: (TBA)
     //
+    // It might also be in reverse order (with the most recent season first)
+    //
     // Cancelled series can have something like:
     //
     //   > 4 Volumes (Incomplete due to the artist's death)
     //
     // Make sure to handle everything we reasonably can.
-    const statusText = getFirstLine(getSectionContent($, html, 'Status in Country of Origin').text())
-    const statusMatch = /\(([a-zA-Z]+)\)/.exec(statusText)
-    const status = statusMatch ? statusMatch[1]?.toLowerCase() || '' : ''
+    const statusMatches = /\(([a-zA-Z]+)\)/g.exec(status)?.slice(1).map(match => match.toLowerCase()) || []
 
-    if (status.includes('incomplete') || status.includes('discontinued')) {
-        return 'ABANDONED'
-    }
-
-    if (status.includes('hiatus')) {
-        return 'HIATUS'
-    }
-
-    if (status.includes('ongoing')) {
+    if (statusMatches.some(match => match.includes('ongoing'))) {
         return 'ONGOING'
     }
 
-    if (status.includes('complete')) {
+    if (statusMatches.some(match => match.includes('hiatus'))) {
+        return 'HIATUS'
+    }
+
+    if (statusMatches.some(match => match.includes('incomplete') || match.includes('discontinued'))) {
+        return 'ABANDONED'
+    }
+
+    if (statusMatches.some(match => match.includes('complete'))) {
         return 'COMPLETED'
     }
 
     return 'UNKNOWN'
-
 }
 
-function parseRating($: CheerioAPI, html: string): number | undefined {
-    const ratingText = getFirstLine(getSectionContent($, html, 'User Rating').text())
-    const ratingMatch = /([\d.]+)\s*\/\s*10\.0/.exec(ratingText)
-    if (!ratingMatch) {
-        return undefined
-    }
-
-    const rating = parseFloat(ratingMatch[1] || '')
-    return isNaN(rating) ? undefined : rating
+function isHentai(manga: MUSeriesModelV1): boolean {
+    return manga.genres?.some(genre => IS_HENTAI_GENRE[genre?.genre || '']) || false
 }
 
-function parseGenres($: CheerioAPI, html: string): string[] {
-    const genres: string[] = []
-    getSectionContent($, html, 'Genre').find('a').map((_i, item) => {
-        const href = $(item).attr('href') || ''
-        if (/series.html\?.*act=genresearch/.exec(href)) {
-            genres.push($(item).text().trim())
-        }
-    })
-    return genres
-}
+export function parseMangaInfo(series: MUSeriesModelV1): Manga {
+    return {
+        titles: [
+            series.title,
+            ...(series.associated || []).map(associated => associated?.title)
+        ].filter((title): title is string => !!title),
+        desc: series.description,
+        image: series.image?.url?.original || '',
 
-export function getMangaInfo($: CheerioAPI, html: string, mangaId: string): Manga {
-    const info: Manga = {
-        titles: parseTitles($, html),
-        image: getSectionContent($, html, 'Image').find('img').attr('src') || '',
-
-        // Long descriptions are under a cut, but there's an ID we can use
-        desc: $('#div_desc_more', html).text().trim() || getSectionContent($, html, 'Description').text(),
-
-        author: getFirstLine(getSectionContent($, html, 'Author(s)').text()),
-        artist: getFirstLine(getSectionContent($, html, 'Artist(s)').text()),
+        author: series.authors?.filter(author => author?.type === 'Author' && author.name).map(author => author.name).join(', '),
+        artist: series.authors?.filter(author => author?.type === 'Artist' && author.name).map(author => author.name).join(', '),
 
         // The type for `status` is lies - it actually expects the string name of the enum value
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        status: parseStatus($, html) as any,
+        status: parseStatus(series.status || '') as any,
 
-        rating: parseRating($, html),
-        hentai: parseGenres($, html).some(genre => IS_HENTAI_GENRE[genre]),
+        rating: series?.bayesian_rating,
+        hentai: isHentai(series),
     }
-
-    console.log(`${logPrefix} parsed manga (id=${mangaId}): ${JSON.stringify(info)}`)
-
-    return info
 }
 
-export function getIdFromPage($: CheerioAPI, html: string, mangaId: string): string {
+export function getIdFromPage($: CheerioAPI, html: string): string {
     const canonicalUrl = $(MANGA_CANONICAL_URL, html).attr('href')
     if (!canonicalUrl) {
         throw new Error('unable to find canonical URL')
@@ -167,8 +94,6 @@ export function getIdFromPage($: CheerioAPI, html: string, mangaId: string): str
     if (!base36Id || isNaN(id)) {
         throw new Error('invalid canonical ID')
     }
-
-    console.log(`${logPrefix} found ID (id=${mangaId}): ${id}`)
 
     return String(id)
 }
