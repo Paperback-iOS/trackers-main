@@ -63,7 +63,7 @@ export function parseMangaInfo(series: MUSeriesModelV1): Manga {
             series.title,
             ...(series.associated || []).map(associated => associated?.title)
         ].filter((title): title is string => !!title),
-        desc: series.description,
+        desc: series.description || '',
         image: series.image?.url?.original || '',
 
         author: series.authors?.filter(author => author?.type === 'Author' && author.name).map(author => author.name).join(', '),
