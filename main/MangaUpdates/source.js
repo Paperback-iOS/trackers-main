@@ -2406,7 +2406,7 @@ exports.MangaUpdatesInfo = {
     author: 'IntermittentlyRupert',
     contentRating: paperback_extensions_common_1.ContentRating.EVERYONE,
     icon: 'icon.png',
-    version: '2.0.0',
+    version: '2.0.1',
     description: 'MangaUpdates Tracker',
     websiteBaseURL: 'https://www.mangaupdates.com',
 };
@@ -3088,7 +3088,7 @@ function parseMangaInfo(series) {
             series.title,
             ...(series.associated || []).map(associated => associated === null || associated === void 0 ? void 0 : associated.title)
         ].filter((title) => !!title),
-        desc: series.description,
+        desc: series.description || '',
         image: ((_b = (_a = series.image) === null || _a === void 0 ? void 0 : _a.url) === null || _b === void 0 ? void 0 : _b.original) || '',
         author: (_c = series.authors) === null || _c === void 0 ? void 0 : _c.filter(author => (author === null || author === void 0 ? void 0 : author.type) === 'Author' && author.name).map(author => author.name).join(', '),
         artist: (_d = series.authors) === null || _d === void 0 ? void 0 : _d.filter(author => (author === null || author === void 0 ? void 0 : author.type) === 'Artist' && author.name).map(author => author.name).join(', '),
