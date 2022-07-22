@@ -479,7 +479,7 @@ exports.PaperbackInfo = {
     author: 'Lemon',
     contentRating: paperback_extensions_common_1.ContentRating.EVERYONE,
     icon: 'icon.png',
-    version: '1.0.2',
+    version: '1.0.3',
     description: 'Komga Tracker',
     authorWebsite: 'https://github.com/FramboisePi',
     websiteBaseURL: 'https://komga.org'
@@ -615,7 +615,7 @@ class Paperback extends paperback_extensions_common_1.Tracker {
                 rows: () => __awaiter(this, void 0, void 0, function* () {
                     return [
                         createMultilineLabel({
-                            label: 'This tracker sync read chapters from the app to the Komga server.\nNote: only titles from the Komga source can be synced.',
+                            label: 'This tracker sync read chapters from the app to the Komga server.\nNote: only titles from the Paperback source can be synced.',
                             value: '',
                             id: 'description'
                         }),
@@ -635,7 +635,7 @@ class Paperback extends paperback_extensions_common_1.Tracker {
             const chapterReadActions = yield actionQueue.queuedChapterReadActions();
             const komgaAPI = yield this.getKomgaAPI();
             for (const readAction of chapterReadActions) {
-                if (readAction.sourceId != 'Komga') {
+                if (readAction.sourceId != 'Paperback') {
                     console.log(`Manga ${readAction.mangaId} from source ${readAction.sourceId} can not be used as it does not come from Komga. Discarding`);
                     yield actionQueue.discardChapterReadAction(readAction);
                 }
