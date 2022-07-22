@@ -513,7 +513,7 @@ class Paperback extends paperback_extensions_common_1.Tracker {
     }
     getAuthorizationString() {
         return __awaiter(this, void 0, void 0, function* () {
-            const authorizationString = yield this.stateManager.retrieve('authorization');
+            const authorizationString = yield this.stateManager.keychain.retrieve('authorization');
             if (authorizationString === null) {
                 throw new Error('Unset credentials in source settings');
             }
