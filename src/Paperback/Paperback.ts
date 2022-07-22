@@ -15,8 +15,8 @@ import { KomgaCommon } from './KomgaCommon'
 
 
 
-export const KomgaInfo: SourceInfo = {
-    name: 'Komga',
+export const PaperbackInfo: SourceInfo = {
+    name: 'Paperback',
     author: 'Lemon',
     contentRating: ContentRating.EVERYONE,
     icon: 'icon.png',
@@ -28,7 +28,7 @@ export const KomgaInfo: SourceInfo = {
 
 const PAGE_SIZE = 40
 
-export class Komga extends Tracker {
+export class Paperback extends Tracker {
     stateManager = createSourceStateManager({})
 
     async getAuthorizationString(): Promise<string>{
