@@ -165,7 +165,7 @@ export class Paperback extends Tracker {
             rows: async () => {
                 return [
                     createMultilineLabel({
-                        label: 'This tracker sync read chapters from the app to the Komga server.\nNote: only titles from the Komga source can be synced.',
+                        label: 'This tracker sync read chapters from the app to the Komga server.\nNote: only titles from the Paperback source can be synced.',
                         value: '',
                         id: 'description'
                     }),
@@ -189,7 +189,7 @@ export class Paperback extends Tracker {
 
         for (const readAction of chapterReadActions) {
 
-            if (readAction.sourceId != 'Komga') {
+            if (readAction.sourceId != 'Paperback') {
                 console.log(`Manga ${readAction.mangaId} from source ${readAction.sourceId} can not be used as it does not come from Komga. Discarding`)
                 await actionQueue.discardChapterReadAction(readAction)
             } else {
