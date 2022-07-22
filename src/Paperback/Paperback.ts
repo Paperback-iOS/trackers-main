@@ -20,7 +20,7 @@ export const PaperbackInfo: SourceInfo = {
     author: 'Lemon',
     contentRating: ContentRating.EVERYONE,
     icon: 'icon.png',
-    version: '1.0.1',
+    version: '1.0.2',
     description: 'Komga Tracker',
     authorWebsite: 'https://github.com/FramboisePi',
     websiteBaseURL: 'https://komga.org'
