@@ -32,7 +32,7 @@ export class Paperback extends Tracker {
     stateManager = createSourceStateManager({})
 
     async getAuthorizationString(): Promise<string>{
-        const authorizationString = await this.stateManager.retrieve('authorization') as string
+        const authorizationString = await this.stateManager.keychain.retrieve('authorization') as string
     
         if (authorizationString === null) {
             throw new Error('Unset credentials in source settings')
