@@ -449,8 +449,8 @@ export class Anilist extends Tracker {
                 if (Math.floor(readAction.chapterNumber) == 1) {
                     params = {
                         mediaId: readAction.mangaId,
-                        progress: Math.floor(readAction.chapterNumber),
-                        progressVolumes: readAction.volumeNumber ? Math.floor(readAction.volumeNumber) : 1
+                        progress: 1,
+                        progressVolumes: 1
                     }
                 }
                 else {
