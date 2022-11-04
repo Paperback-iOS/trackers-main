@@ -38,7 +38,7 @@ export const AnilistInfo: SourceInfo = {
     author: 'Faizan Durrani',
     contentRating: ContentRating.EVERYONE,
     icon: 'icon.png',
-    version: '1.0.12',
+    version: '1.0.11',
     description: 'Anilist Tracker',
     authorWebsite: 'faizandurrani.github.io',
     websiteBaseURL: 'https://anilist.co'
