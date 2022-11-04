@@ -445,10 +445,20 @@ export class Anilist extends Tracker {
 
         for(const readAction of chapterReadActions) {
             try {
-                const params = {
-                    mediaId: readAction.mangaId,
-                    progress: Math.floor(readAction.chapterNumber),
-                    progressVolumes: readAction.volumeNumber ? Math.floor(readAction.volumeNumber) : undefined
+                let params = {}
+                if (readAction.chapterNumber == 1 && readAction.volumeNumber == undefined) {
+                    params = {
+                        mediaId: readAction.mangaId,
+                        progress: Math.floor(readAction.chapterNumber),
+                        chapterNumber: 1
+                    }
+                }
+                else {
+                    params = {
+                        mediaId: readAction.mangaId,
+                        progress: Math.floor(readAction.chapterNumber),
+                        chapterNumber: readAction.volumeNumber ? Math.floor(readAction.volumeNumber) : undefined
+                    }
                 }
 
                 const response = await this.requestManager.schedule(createRequestObject({
