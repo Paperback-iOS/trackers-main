@@ -446,7 +446,7 @@ export class Anilist extends Tracker {
         for(const readAction of chapterReadActions) {
             try {
                 let params = {}
-                if (Math.floor(readAction.chapterNumber) == 1) {
+                if (Math.floor(readAction.chapterNumber) == 1 && !readAction.volumeNumber) {
                     params = {
                         mediaId: readAction.mangaId,
                         progress: 1,
