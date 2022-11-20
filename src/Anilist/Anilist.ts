@@ -38,7 +38,7 @@ export const AnilistInfo: SourceInfo = {
     author: 'Faizan Durrani',
     contentRating: ContentRating.EVERYONE,
     icon: 'icon.png',
-    version: '1.0.10',
+    version: '1.0.11',
     description: 'Anilist Tracker',
     authorWebsite: 'faizandurrani.github.io',
     websiteBaseURL: 'https://anilist.co'
@@ -445,10 +445,20 @@ export class Anilist extends Tracker {
 
         for(const readAction of chapterReadActions) {
             try {
-                const params = {
-                    mediaId: readAction.mangaId,
-                    progress: Math.floor(readAction.chapterNumber),
-                    progressVolumes: readAction.volumeNumber ? Math.floor(readAction.volumeNumber) : undefined
+                let params = {}
+                if (Math.floor(readAction.chapterNumber) == 1 && !readAction.volumeNumber) {
+                    params = {
+                        mediaId: readAction.mangaId,
+                        progress: 1,
+                        progressVolumes: 1
+                    }
+                }
+                else {
+                    params = {
+                        mediaId: readAction.mangaId,
+                        progress: Math.floor(readAction.chapterNumber),
+                        progressVolumes: readAction.volumeNumber ? Math.floor(readAction.volumeNumber) : undefined
+                    }
                 }
 
                 const response = await this.requestManager.schedule(createRequestObject({
